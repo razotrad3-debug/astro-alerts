@@ -12,6 +12,7 @@ ne relaie pas tout sur Telegram, et c'est exactement ce qui faisait manquer
 des entrees.
 """
 import json
+import time
 import re
 
 import requests
@@ -71,20 +72,34 @@ def _images(tweet: dict) -> list:
 
 def derniers_tweets(handle: str, brut_aussi: bool = False):
     """Le timeline complet du compte, au meme format que les autres sources."""
-    try:
-        r = requests.get(
-            _URL.format(h=handle.lstrip("@")),
-            params={"dsrc": "embed", "frame": "false", "lang": "en",
-                    "showHeader": "false"},
-            headers={"User-Agent": _UA, "Referer": "https://platform.twitter.com/"},
-            timeout=_TIMEOUT,
-        )
-    except Exception as e:
-        raise ErreurSyndication("syndication.twitter.com injoignable : " + str(e))
+    # Le 429 est intermittent : le meme runner peut etre refuse puis accepte
+    # quelques secondes plus tard. Sans reprises, on retombe inutilement sur
+    # Telegram — qui ne voit qu'une fraction des posts.
+    r = None
+    for essai in range(4):
+        try:
+            r = requests.get(
+                _URL.format(h=handle.lstrip("@")),
+                params={"dsrc": "embed", "frame": "false", "lang": "en",
+                        "showHeader": "false"},
+                headers={"User-Agent": _UA,
+                         "Referer": "https://platform.twitter.com/"},
+                timeout=_TIMEOUT,
+            )
+        except Exception as e:
+            raise ErreurSyndication("syndication.twitter.com injoignable : " + str(e))
+
+        if r.status_code != 429:
+            break
+        if essai < 3:
+            attente = 8 * (essai + 1)
+            print("[x] syndication refuse (429), nouvel essai dans "
+                  + str(attente) + "s...")
+            time.sleep(attente)
 
     if r.status_code == 429:
         raise ErreurSyndication(
-            "syndication.twitter.com : 429, cette adresse IP est limitee par X."
+            "syndication.twitter.com : 429 apres 4 essais, IP limitee par X."
         )
     if r.status_code == 404:
         raise ErreurSyndication("Compte introuvable : @" + handle)
