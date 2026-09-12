@@ -1,0 +1,68 @@
+name: x-short-watcher
+
+on:
+  schedule:
+    # Toutes les 15 minutes. Le minimum autorise par GitHub est 5 min, mais
+    # le declenchement part deja avec 5 a 15 min de retard aux heures
+    # chargees : passer a 5 min ne gagnerait presque rien sur la latence
+    # reelle, et triplerait la facture twitterapi.io (facturee au tweet
+    # ramene, ~20 par appel). Voir la section Cout du README.
+    - cron: "*/15 * * * *"
+  workflow_dispatch:        # bouton "Run workflow" pour tester a la main
+
+# Necessaire pour que le job puisse recommiter state.json (la memoire du bot).
+permissions:
+  contents: write
+
+concurrency:
+  # Deux passages simultanes se marcheraient dessus sur state.json.
+  group: x-short-watcher
+  cancel-in-progress: false
+
+jobs:
+  watch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - run: pip install -r requirements.txt
+
+      - name: Passage du watcher
+        env:
+          # En Secret (masque dans les logs) de preference ; en Variable si
+          # tu te fiches que le handle apparaisse en clair.
+          X_HANDLES: ${{ secrets.X_HANDLES || vars.X_HANDLES }}
+          # Mode gratuit (defaut)
+          SOURCE_X: ${{ vars.SOURCE_X || 'telegram' }}
+          TELEGRAM_CANAL: ${{ vars.TELEGRAM_CANAL || 'AstronomerZero' }}
+          APIFY_TOKEN: ${{ secrets.APIFY_TOKEN }}
+          FOURNISSEUR_IA: ${{ vars.FOURNISSEUR_IA || 'gemini' }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          # Mode payant : bascule via les Variables SOURCE_X / FOURNISSEUR_IA
+          TWITTERAPI_IO_KEY: ${{ secrets.TWITTERAPI_IO_KEY }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: python main.py
+
+      - name: Memoriser les tweets traites
+        run: |
+          if [ -n "$(git status --porcelain state.json)" ]; then
+            git config user.name  "x-short-watcher"
+            git config user.email "actions@github.com"
+            git add state.json
+            git commit -m "state: tweets traites [skip ci]"
+            # Un autre passage a pu committer entre-temps ; on rebase avant
+            # de pousser plutot que d'echouer le job.
+            git pull --rebase --autostash origin "${GITHUB_REF_NAME}"
+            git push
+          else
+            echo "Rien de nouveau, state.json inchange."
+          fi
