@@ -271,22 +271,33 @@ def envoyer_dernieres_entrees(n: int) -> int:
     # Telegram, page par page, jusqu'a reunir assez de candidats.
     from watcher import x_telegram
     vus = {m["id"] for m in messages}
-    curseur = None
+    # Le curseur part du message Telegram le plus ancien deja connu ; sans
+    # ca, la premiere page redemandee serait identique et la pagination
+    # s'arreterait avant d'avoir commence.
+    nums = [int(m["_num"]) for m in messages if str(m.get("_num", "")).isdigit()]
+    curseur = min(nums) if nums else None
+
     for _ in range(6):
-        if sum(1 for m in messages if m.get("images")) >= n * 5:
+        if sum(1 for m in messages if m.get("images")) >= n * 4:
             break
         try:
             lot = x_telegram.derniers_tweets(config.TELEGRAM_CANAL, avant=curseur)
-        except Exception:
+        except Exception as e:
+            print("   (pagination interrompue : " + str(e)[:60] + ")")
             break
         if not lot:
             break
-        curseur = str(lot[0].get("_num") or lot[0]["id"]).replace("tg-", "")
-        ajoutes = [m for m in lot if m["id"] not in vus]
-        if not ajoutes:
+        # On recule toujours : le curseur suit le plus ancien de la page lue.
+        suivants = [int(m["_num"]) for m in lot if str(m.get("_num", "")).isdigit()]
+        if not suivants or (curseur and min(suivants) >= int(curseur)):
             break
+        curseur = min(suivants)
+
+        ajoutes = [m for m in lot if m["id"] not in vus]
         vus.update(m["id"] for m in ajoutes)
         messages = ajoutes + messages
+        print("   remontee : +" + str(len(ajoutes)) + " message(s), "
+              + str(sum(1 for m in messages if m.get("images"))) + " avec chart")
 
     print(str(len(messages)) + " message(s) disponibles, recherche des entrees...")
 
