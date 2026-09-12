@@ -439,6 +439,8 @@ def main() -> int:
     ap = argparse.ArgumentParser(description="Surveille un compte X et alerte sur Telegram.")
     ap.add_argument("--boucle", action="store_true", help="tourne en continu")
     ap.add_argument("--intervalle", type=int, default=60, help="secondes entre deux passages (--boucle)")
+    ap.add_argument("--duree", type=int, metavar="MIN", default=0,
+                    help="arrete la boucle apres MIN minutes (0 = sans fin)")
     ap.add_argument("--test", action="store_true", help="diagnostic complet")
     ap.add_argument("--rejouer", type=int, metavar="N", help="re-analyse les N derniers tweets")
     ap.add_argument("--chatid", action="store_true", help="affiche ton TELEGRAM_CHAT_ID")

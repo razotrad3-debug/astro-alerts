@@ -29,7 +29,7 @@ concurrency:
 jobs:
   watch:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 20
 
     steps:
       - uses: actions/checkout@v4
@@ -70,7 +70,9 @@ jobs:
           elif [ "${{ github.event.inputs.entrees }}" != "" ] && [ "${{ github.event.inputs.entrees }}" != "0" ]; then
             python main.py --entrees "${{ github.event.inputs.entrees }}"
           else
-            python main.py
+            # Le job boucle pendant tout l'intervalle du cron : on verifie
+            # chaque minute au lieu d'attendre le prochain declenchement.
+            python main.py --boucle --intervalle 60 --duree 13
           fi
 
       - name: Memoriser les tweets traites

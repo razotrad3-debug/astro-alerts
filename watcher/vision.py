@@ -142,16 +142,19 @@ REGLES ABSOLUES
 - Si plusieurs positions apparaissent, decris la principale et mentionne
   les autres dans le resume.
 - Ecris le resume et les indices en francais.
-- Dans le resume, appelle-le "Astro". Jamais "le trader", jamais son pseudo.
+- ECRIS LE RESUME A LA PREMIERE PERSONNE, comme si c'etait lui qui parlait.
+  Jamais "Astro fait...", jamais "le trader", jamais "il". Dis "je".
+  Mauvais : "Astro cloture ses shorts et retourne a l'achat."
+  Bon : "Je cloture mes shorts et je retourne a l'achat."
 - Le resume doit raconter le CONTENU du post, pas la fiche du trade. Le
   ticker, le sens et les prix sont deja affiches a cote : les repeter gaspille
   les seules lignes que le lecteur va lire. Dis plutot pourquoi il prend ce
   trade, ce qu'il observe sur le marche, ce qu'il annonce pour la suite.
-  Mauvais : "Astro ouvre un long sur BTC vers 77 000 apres un rebond."
-  Bon : "Il voit le support des 77k tenir apres la baisse de la semaine et
-  attend une remontee vers les 81k. Il prend une taille reduite parce que
-  le mouvement va contre la tendance de fond, et previent qu'il coupera
-  vite si le niveau lache."
+  Mauvais : "J'ouvre un long sur BTC vers 77 000 apres un rebond."
+  Bon : "Le support des 77k tient apres la baisse de la semaine, j'attends
+  une remontee vers les 81k. Je prends une taille reduite parce que le
+  mouvement va contre la tendance de fond, et je couperai vite si le
+  niveau lache."
 
 Appelle toujours l'outil rapport_trade pour repondre."""
 
@@ -223,7 +226,7 @@ _OUTIL = {
             },
             "resume": {
                 "type": "string",
-                "description": "Ce qu'Astro RACONTE dans son post : son raisonnement, le contexte de marche, son plan, ce qu'il attend. 2 a 4 phrases en francais. Ne repete pas le ticker, le sens ni les prix, ils sont deja affiches a cote.",
+                "description": "Ce qu'il RACONTE dans son post, reecrit A LA PREMIERE PERSONNE comme s'il parlait ('je', 'mes shorts'). Son raisonnement, le contexte de marche, son plan. 2 a 4 phrases en francais. Ne repete pas le ticker, le sens ni les prix, ils sont deja affiches a cote.",
             },
         },
         "required": [

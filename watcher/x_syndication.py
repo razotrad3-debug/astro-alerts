@@ -31,6 +31,12 @@ class ErreurSyndication(Exception):
     pass
 
 
+# Instant avant lequel on ne retente pas X. Rempli apres un 429 : cela evite
+# de perdre ~50 s de reprises a chaque passage quand X nous refuse.
+_QUARANTAINE = 0.0
+QUARANTAINE_SECONDES = 600
+
+
 def _entrees(page: str) -> list:
     """Extrait les tweets du JSON embarque dans la page."""
     m = _RE_NEXT.search(page)
@@ -72,6 +78,15 @@ def _images(tweet: dict) -> list:
 
 def derniers_tweets(handle: str, brut_aussi: bool = False):
     """Le timeline complet du compte, au meme format que les autres sources."""
+    # Quarantaine : quand X vient de refuser, inutile de reperdre 50 secondes
+    # en reprises au passage suivant. En mode boucle (un passage par minute),
+    # ce temps mort dominerait tout le cycle.
+    global _QUARANTAINE
+    if _QUARANTAINE and time.time() < _QUARANTAINE:
+        reste = int(_QUARANTAINE - time.time())
+        raise ErreurSyndication(
+            "X en quarantaine encore " + str(reste) + "s (429 recent).")
+
     # Le 429 est intermittent : le meme runner peut etre refuse puis accepte
     # quelques secondes plus tard. Sans reprises, on retombe inutilement sur
     # Telegram — qui ne voit qu'une fraction des posts.
@@ -98,14 +113,17 @@ def derniers_tweets(handle: str, brut_aussi: bool = False):
             time.sleep(attente)
 
     if r.status_code == 429:
+        _QUARANTAINE = time.time() + QUARANTAINE_SECONDES
         raise ErreurSyndication(
-            "syndication.twitter.com : 429 apres 4 essais, IP limitee par X."
+            "syndication.twitter.com : 429 apres 4 essais. X mis en "
+            "quarantaine " + str(QUARANTAINE_SECONDES // 60) + " min."
         )
     if r.status_code == 404:
         raise ErreurSyndication("Compte introuvable : @" + handle)
     if r.status_code >= 400:
         raise ErreurSyndication("syndication a repondu " + str(r.status_code))
 
+    _QUARANTAINE = 0.0          # X repond : on leve la quarantaine
     entrees = _entrees(r.text)
     if not entrees:
         raise ErreurSyndication("Timeline vide (compte protege ou sans tweets ?).")
