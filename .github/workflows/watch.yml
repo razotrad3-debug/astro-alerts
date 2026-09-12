@@ -8,6 +8,12 @@ on:
     # reelle, et triplerait la facture twitterapi.io (facturee au tweet
     # ramene, ~20 par appel). Voir la section Cout du README.
     - cron: "*/5 * * * *"
+  # Declenchement par evenement : contrairement au cron, il n'est pas bride
+  # par GitHub et demarre en quelques secondes. Un minuteur externe gratuit
+  # (Cloudflare Workers, cron-job.org) poste ici chaque minute.
+  repository_dispatch:
+    types: [verifier]
+
   workflow_dispatch:        # bouton "Run workflow" pour tester a la main
     inputs:
       entrees:
