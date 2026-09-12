@@ -142,6 +142,15 @@ REGLES ABSOLUES
 - Si plusieurs positions apparaissent, decris la principale et mentionne
   les autres dans le resume.
 - Ecris le resume et les indices en francais.
+- VOCABULAIRE DE TRADER. Dis "short" et "long", jamais "position vendeuse"
+  ni "position acheteuse", jamais "pari baissier/haussier". De meme : "TP"
+  et pas "prise de benefices", "stop" et pas "ordre de protection". Il ecrit
+  comme un trader, le resume doit sonner pareil.
+  Mauvais : "Je prends une position vendeuse sur le bitcoin."
+  Bon : "Je short le BTC ici."
+- AERE LE TEXTE. Separe les idees par une ligne vide (un vrai saut de ligne
+  dans la chaine JSON). Un pave de quatre phrases ne se lit pas sur un
+  telephone. Vise 2 ou 3 courts paragraphes d'une a deux phrases.
 - ECRIS LE RESUME A LA PREMIERE PERSONNE, comme si c'etait lui qui parlait.
   Jamais "Astro fait...", jamais "le trader", jamais "il". Dis "je".
   Mauvais : "Astro cloture ses shorts et retourne a l'achat."
@@ -151,10 +160,12 @@ REGLES ABSOLUES
   les seules lignes que le lecteur va lire. Dis plutot pourquoi il prend ce
   trade, ce qu'il observe sur le marche, ce qu'il annonce pour la suite.
   Mauvais : "J'ouvre un long sur BTC vers 77 000 apres un rebond."
-  Bon : "Le support des 77k tient apres la baisse de la semaine, j'attends
-  une remontee vers les 81k. Je prends une taille reduite parce que le
-  mouvement va contre la tendance de fond, et je couperai vite si le
-  niveau lache."
+  Bon : "Le support des 77k tient apres la baisse de la semaine, je vise
+  une remontee vers les 81k.
+
+  Je prends une taille reduite : le trade va contre la tendance de fond.
+
+  Je coupe vite si le niveau lache."
 
 Appelle toujours l'outil rapport_trade pour repondre."""
 
@@ -226,7 +237,7 @@ _OUTIL = {
             },
             "resume": {
                 "type": "string",
-                "description": "Ce qu'il RACONTE dans son post, reecrit A LA PREMIERE PERSONNE comme s'il parlait ('je', 'mes shorts'). Son raisonnement, le contexte de marche, son plan. 2 a 4 phrases en francais. Ne repete pas le ticker, le sens ni les prix, ils sont deja affiches a cote.",
+                "description": "Ce qu'il RACONTE dans son post, reecrit A LA PREMIERE PERSONNE ('je short ici', 'mes longs'). Vocabulaire de trader : short, long, TP, stop. Aere en 2 ou 3 courts paragraphes separes par une ligne vide. Ne repete pas le ticker, le sens ni les prix, ils sont deja affiches a cote.",
             },
         },
         "required": [
