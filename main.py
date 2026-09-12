@@ -359,7 +359,9 @@ def envoyer_dernieres_entrees(n: int) -> int:
             continue
         statut = (analyse.get("statut") or "?").lower()
         print("   [" + statut + "] " + t["texte"][:55].replace("\n", " "))
-        if statut in config.STATUTS_ALERTE:
+        # Meme regle que le passage normal : quand on ne trie plus, tout
+        # post a photo est retenu, quel que soit son statut.
+        if config.ALERTER_SANS_TRADE or statut in config.STATUTS_ALERTE:
             retenus.append((t, analyse))
         time.sleep(4)                     # palier gratuit : limite par minute
 
