@@ -48,6 +48,10 @@ jobs:
           TELEGRAM_CANAL: ${{ vars.TELEGRAM_CANAL || 'AstronomerZero' }}
           APIFY_TOKEN: ${{ secrets.APIFY_TOKEN }}
           FOURNISSEUR_IA: ${{ vars.FOURNISSEUR_IA || 'gemini' }}
+          # Comportement : sans photo, ce n'est pas une annonce d'entree.
+          ANALYSER_SANS_IMAGE: ${{ vars.ANALYSER_SANS_IMAGE || 'false' }}
+          STATUTS_ALERTE: ${{ vars.STATUTS_ALERTE || 'ouverture,intention' }}
+          ALERTER_SANS_TRADE: ${{ vars.ALERTER_SANS_TRADE || 'false' }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           # Mode payant : bascule via les Variables SOURCE_X / FOURNISSEUR_IA
           TWITTERAPI_IO_KEY: ${{ secrets.TWITTERAPI_IO_KEY }}

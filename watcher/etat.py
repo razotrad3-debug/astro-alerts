@@ -34,6 +34,17 @@ def sauver(etat: dict) -> None:
         print("[etat] sauvegarde impossible : " + str(e))
 
 
+def cle(handle: str, source: str = "") -> str:
+    """Cle de memoire, propre a chaque source.
+
+    Les identifiants ne vivent pas dans le meme espace selon la source :
+    X donne des numeros de tweet, Telegram des numeros de message. Melanger
+    les deux ferait croire, a chaque basculement, que tout est nouveau — et
+    rejouerait tout l'historique de l'autre source en alertes.
+    """
+    return handle + "@" + source if source else handle
+
+
 def deja_vus(etat: dict, handle: str) -> list:
     return list(etat.get(handle, {}).get("ids", []))
 

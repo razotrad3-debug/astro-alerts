@@ -107,23 +107,27 @@ def passage() -> None:
             print("   erreur inattendue : " + str(e))
             continue
 
-        print("   " + str(len(tweets)) + " tweet(s) retenu(s)")
+        # La source reellement utilisee peut differer de celle demandee
+        # (mode auto avec repli) : on memorise par source effective.
+        marque = memoire.cle(handle, source.derniere_source())
+        print("   " + str(len(tweets)) + " tweet(s) retenu(s) via "
+              + source.derniere_source())
 
-        premier = memoire.est_premier_run(etat, handle)
-        vus = memoire.deja_vus(etat, handle)
+        premier = memoire.est_premier_run(etat, marque)
+        vus = memoire.deja_vus(etat, marque)
         nouveaux = [t for t in tweets if t["id"] not in vus]
 
         if premier and config.SILENCE_PREMIER_RUN:
             # Premier demarrage : on enregistre l'existant sans alerter,
             # sinon on recoit d'un coup tout l'historique disponible.
-            memoire.marquer(etat, handle, [t["id"] for t in tweets])
+            memoire.marquer(etat, marque, [t["id"] for t in tweets])
             print("   premier run : " + str(len(tweets))
                   + " tweet(s) marques comme vus, aucune alerte envoyee")
             continue
 
         if not nouveaux:
             print("   rien de nouveau")
-            memoire.marquer(etat, handle, [])
+            memoire.marquer(etat, marque, [])
             continue
 
         for i, t in enumerate(nouveaux):
@@ -138,7 +142,7 @@ def passage() -> None:
                 traceback.print_exc()
             # Marque meme en cas d'echec : un tweet illisible ne doit pas
             # bloquer la file a chaque passage du cron.
-            memoire.marquer(etat, handle, [t["id"]])
+            memoire.marquer(etat, marque, [t["id"]])
 
     memoire.sauver(etat)
 
