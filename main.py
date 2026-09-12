@@ -109,7 +109,9 @@ def passage() -> None:
 
         # La source reellement utilisee peut differer de celle demandee
         # (mode auto avec repli) : on memorise par source effective.
-        marque = memoire.cle(handle, source.derniere_source())
+        # Identifiants canoniques (id de tweet) : une seule memoire suffit,
+        # quelle que soit la source qui a vu le post.
+        marque = memoire.cle(handle, "fusion")
         print("   " + str(len(tweets)) + " tweet(s) retenu(s) via "
               + source.derniere_source())
 
@@ -263,6 +265,28 @@ def envoyer_dernieres_entrees(n: int) -> int:
     except Exception as e:
         print("Lecture impossible : " + str(e))
         return 1
+
+    # La plupart des posts sont du suivi de position : si les messages
+    # recents ne suffisent pas, on remonte l'historique de la chaine
+    # Telegram, page par page, jusqu'a reunir assez de candidats.
+    from watcher import x_telegram
+    vus = {m["id"] for m in messages}
+    curseur = None
+    for _ in range(6):
+        if sum(1 for m in messages if m.get("images")) >= n * 5:
+            break
+        try:
+            lot = x_telegram.derniers_tweets(config.TELEGRAM_CANAL, avant=curseur)
+        except Exception:
+            break
+        if not lot:
+            break
+        curseur = str(lot[0].get("_num") or lot[0]["id"]).replace("tg-", "")
+        ajoutes = [m for m in lot if m["id"] not in vus]
+        if not ajoutes:
+            break
+        vus.update(m["id"] for m in ajoutes)
+        messages = ajoutes + messages
 
     print(str(len(messages)) + " message(s) disponibles, recherche des entrees...")
 

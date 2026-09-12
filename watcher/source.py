@@ -16,9 +16,30 @@ def derniere_source() -> str:
     return _DERNIERE
 
 
+def _fusionner(*listes):
+    """Reunit plusieurs sources en dedoublonnant sur l'identifiant.
+
+    La premiere liste est prioritaire : quand X et Telegram voient le meme
+    post, on garde la version X (texte complet, image d'origine) et on
+    ignore l'apercu Telegram, plus pauvre.
+    """
+    vus = {}
+    for liste in listes:
+        for msg in liste or []:
+            if msg["id"] not in vus:
+                vus[msg["id"]] = msg
+
+    def _cle(m):
+        try:
+            return (1, int(str(m["id"]).replace("tg-", "")))
+        except Exception:
+            return (0, 0)
+    return sorted(vus.values(), key=_cle)
+
+
 def nom() -> str:
     if config.SOURCE_X == "auto":
-        return "auto (X syndication, repli Telegram)"
+        return "X + Telegram (fusionnes)"
     if config.SOURCE_X == "syndication":
         return "X syndication"
     if config.SOURCE_X == "telegram":
@@ -38,19 +59,30 @@ def derniers_tweets(handle: str, brut_aussi: bool = False):
     # On prefere donc X, et on ne bascule que s'il refuse (429 selon l'IP).
     global _DERNIERE
     if config.SOURCE_X == "auto":
+        # On interroge les DEUX et on fusionne : X est plus complet mais
+        # refuse par intermittence, Telegram est partiel mais toujours la.
+        # Leur reunion est plus sure que l'un ou l'autre seul.
+        depuis_x = depuis_tg = []
+        sources = []
         try:
-            r = x_syndication.derniers_tweets(handle, brut_aussi)
-            _DERNIERE = "x"
-            return r
+            depuis_x = x_syndication.derniers_tweets(handle)
+            sources.append("x(" + str(len(depuis_x)) + ")")
         except x_syndication.ErreurSyndication as e:
-            print("[source] X indisponible (" + str(e)[:80]
-                  + ") -> repli sur la chaine Telegram")
+            print("[source] X indisponible : " + str(e)[:90])
         try:
-            r = x_telegram.derniers_tweets(config.TELEGRAM_CANAL, brut_aussi)
-            _DERNIERE = "telegram"
-            return r
+            depuis_tg = x_telegram.derniers_tweets(config.TELEGRAM_CANAL)
+            sources.append("telegram(" + str(len(depuis_tg)) + ")")
         except x_telegram.ErreurTelegram as e:
-            raise ErreurSource(str(e))
+            print("[source] Telegram indisponible : " + str(e)[:90])
+
+        if not depuis_x and not depuis_tg:
+            raise ErreurSource("aucune source disponible")
+
+        _DERNIERE = "+".join(sources)
+        fusion = _fusionner(depuis_x, depuis_tg)
+        if brut_aussi:
+            return fusion, {}
+        return fusion
 
     try:
         if config.SOURCE_X == "syndication":

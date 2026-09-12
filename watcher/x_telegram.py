@@ -104,10 +104,18 @@ def _message(bloc, canal: str) -> dict:
     if t is not None:
         date = t.get("datetime", "") or ""
 
+    # Identifiant CANONIQUE : celui du tweet des qu'on le connait, pour que
+    # le meme post vu sur X et sur Telegram ne compte qu'une fois. Sans ca,
+    # fusionner les deux sources creerait des doublons, et basculer de l'une
+    # a l'autre rejouerait tout l'historique en alertes.
+    m_id = _RE_STATUT.search(lien_x or "")
+    identifiant = m_id.group(2) if m_id else ("tg-" + num)
+
     return {
-        # Prefixe tg- : l'identifiant est celui du message Telegram, pas du
-        # tweet. Deux messages peuvent pointer le meme tweet (relais + suite).
-        "id": "tg-" + num,
+        "id": identifiant,
+        # Numero du message dans la chaine : l'identifiant est celui du
+        # tweet, mais la pagination de t.me se fait sur ce numero-la.
+        "_num": num,
         "handle": config.HANDLES[0] if config.HANDLES else canal,
         "texte": texte,
         "images": images[:4],
