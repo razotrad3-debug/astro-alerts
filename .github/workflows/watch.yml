@@ -7,7 +7,7 @@ on:
     # chargees : passer a 5 min ne gagnerait presque rien sur la latence
     # reelle, et triplerait la facture twitterapi.io (facturee au tweet
     # ramene, ~20 par appel). Voir la section Cout du README.
-    - cron: "*/15 * * * *"
+    - cron: "*/5 * * * *"
   workflow_dispatch:        # bouton "Run workflow" pour tester a la main
     inputs:
       entrees:
@@ -29,7 +29,7 @@ concurrency:
 jobs:
   watch:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 10
 
     steps:
       - uses: actions/checkout@v4
@@ -70,9 +70,11 @@ jobs:
           elif [ "${{ github.event.inputs.entrees }}" != "" ] && [ "${{ github.event.inputs.entrees }}" != "0" ]; then
             python main.py --entrees "${{ github.event.inputs.entrees }}"
           else
-            # Le job boucle pendant tout l'intervalle du cron : on verifie
-            # chaque minute au lieu d'attendre le prochain declenchement.
-            python main.py --boucle --intervalle 60 --duree 13
+            # Passage unique (~1 min). Une boucle longue faisait deborder
+            # les jobs les uns sur les autres avec les retards de GitHub, et
+            # le groupe de concurrence annulait les passages en attente :
+            # quatre d'affilee perdus. Court et frequent est plus sur.
+            python main.py
           fi
 
       - name: Memoriser les tweets traites
