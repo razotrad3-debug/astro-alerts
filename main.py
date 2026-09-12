@@ -158,8 +158,24 @@ def passage() -> None:
             continue
 
         if not nouveaux:
+            # Les sources gratuites n'ont rien. Un compteur gratuit dit-il
+            # quand meme qu'il a publie ? Si oui, c'est que le post existe
+            # sur X sans avoir ete relaye : c'est le seul cas ou l'on paie
+            # un appel Apify.
+            from watcher import veille
+            if veille.a_publie(handle, memoire):
+                rattrape = source.complement_apify(handle)
+                if rattrape:
+                    etat = memoire.charger()      # complement_apify a ecrit
+                    vus = memoire.deja_vus(etat, marque)
+                    nouveaux = [t for t in rattrape if t["id"] not in vus]
+                    print("   Apify rapporte " + str(len(nouveaux))
+                          + " post(s) que les sources gratuites n'avaient pas")
+
+        if not nouveaux:
             print("   rien de nouveau")
             memoire.marquer(etat, marque, [])
+            memoire.sauver(etat)
             continue
 
         # Filtre d'age AVANT toute analyse : cela evite le deluge quand une

@@ -72,7 +72,10 @@ APIFY_MAX = _int("APIFY_MAX", 5)
 # Apify est facture au tweet ramene (~0,008 $ par passage de 5, mesure le
 # 12/09/2026). Les 5 $ offerts chaque mois ne couvrent donc qu'environ un
 # passage par heure. On l'espace, pendant que Telegram assure la reactivite.
-APIFY_INTERVALLE_MIN = _int("APIFY_INTERVALLE_MIN", 60)
+# Espacement MINIMAL entre deux appels Apify, meme quand le compteur dit
+# qu'il a publie. Garde-fou : si la detection deraille, les credits ne
+# partent pas en une nuit.
+APIFY_MIN_ENTRE_APPELS = _int("APIFY_MIN_ENTRE_APPELS", 4)
 
 # ── Quelle IA lit les tweets ? ────────────────────────────
 # "gemini"    : gratuit, teste et fonctionnel — defaut

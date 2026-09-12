@@ -51,6 +51,33 @@ def nom() -> str:
     return "twitterapi.io"
 
 
+def complement_apify(handle: str):
+    """Interroge Apify, en garantissant un espacement minimal.
+
+    Facture au tweet ramene : on ne vient ici que lorsque le compteur
+    gratuit a bouge et que ni X ni Telegram n'ont rapporte le post. Le
+    garde-fou d'espacement evite qu'un bug de detection ne vide les
+    credits en une nuit.
+    """
+    global _DERNIERE
+    if not config.APIFY_TOKEN:
+        return []
+    from . import etat
+    ecoule = (time.time() - etat.horodatage("apify")) / 60.0
+    if ecoule < config.APIFY_MIN_ENTRE_APPELS:
+        print("[source] Apify appele il y a " + str(int(ecoule))
+              + " min, on attend (garde-fou credits)")
+        return []
+    try:
+        lot = x_apify.derniers_tweets(handle)
+    except x_apify.ErreurApify as e:
+        print("[source] Apify indisponible : " + str(e)[:90])
+        return []
+    etat.poser_horodatage("apify")
+    _DERNIERE = (_DERNIERE + "+apify(" + str(len(lot)) + ")").lstrip("+")
+    return lot
+
+
 def derniers_tweets(handle: str, brut_aussi: bool = False):
     """Les derniers tweets du compte, quelle que soit la source configuree.
 
@@ -81,29 +108,17 @@ def derniers_tweets(handle: str, brut_aussi: bool = False):
         except x_telegram.ErreurTelegram as e:
             print("[source] Telegram indisponible : " + str(e)[:90])
 
-        # Apify voit tout mais chaque tweet ramene est facture : on ne
-        # l'appelle qu'a intervalle espace, pour tenir dans les credits
-        # offerts. Il sert de filet sur ce que les deux autres ont manque.
-        if config.APIFY_TOKEN:
-            from . import etat
-            ecoule = (time.time() - etat.horodatage("apify")) / 60.0
-            if ecoule >= config.APIFY_INTERVALLE_MIN:
-                try:
-                    depuis_apify = x_apify.derniers_tweets(handle)
-                    etat.poser_horodatage("apify")
-                    sources.append("apify(" + str(len(depuis_apify)) + ")")
-                except x_apify.ErreurApify as e:
-                    print("[source] Apify indisponible : " + str(e)[:90])
-            else:
-                print("[source] Apify dans " + str(int(config.APIFY_INTERVALLE_MIN - ecoule))
-                      + " min (credits menages)")
+        # Apify n'est PAS appele ici : il facture chaque tweet ramene.
+        # C'est main.py qui le declenche, et seulement quand le compteur
+        # gratuit dit qu'il a publie sans que les sources gratuites
+        # n'aient rien rapporte. Voir complement_apify().
 
-        if not depuis_x and not depuis_tg and not depuis_apify:
+        if not depuis_x and not depuis_tg:
             raise ErreurSource("aucune source disponible")
 
         _DERNIERE = "+".join(sources) or "aucune"
-        # Ordre de priorite : X, puis Apify, puis l'apercu Telegram, plus pauvre.
-        fusion = _fusionner(depuis_x, depuis_apify, depuis_tg)
+        # Ordre de priorite : X, puis l'apercu Telegram, plus pauvre.
+        fusion = _fusionner(depuis_x, depuis_tg)
         if brut_aussi:
             return fusion, {}
         return fusion
