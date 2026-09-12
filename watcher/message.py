@@ -10,6 +10,17 @@ d'oeil sur un telephone, et le lien permet d'aller voir le contexte.
 _EMOJI_SENS = {"short": "\U0001F534", "long": "\U0001F7E2"}
 
 
+# Mention discrete du type de post. Vide pour une entree : c'est le cas
+# qui interesse, il n'a pas besoin d'etiquette.
+_MENTION = {
+    "ouverture": "",
+    "intention": " — <i>a venir</i>",
+    "en_cours": " · <i>suivi</i>",
+    "cloture": " · <i>cloture</i>",
+    "analyse": " · <i>analyse</i>",
+}
+
+
 def _echapper(t) -> str:
     """Telegram en mode HTML : seuls &, < et > doivent etre echappes."""
     if t is None:
@@ -51,15 +62,21 @@ def construire(tweet: dict, analyse: dict) -> str:
                 + '<a href="' + lien + '">voir le post</a>')
 
     sens = (analyse.get("sens") or "").lower()
-    ticker = analyse.get("ticker") or "?"
-    intention = (analyse.get("statut") or "").lower() == "intention"
+    ticker = analyse.get("ticker") or ""
+    statut = (analyse.get("statut") or "").lower()
 
-    titre = (_EMOJI_SENS.get(sens, "⚪") + " <b>" + _echapper(ticker)
-             + " : " + _echapper(sens.upper() or "?") + "</b>")
-    if intention:
-        # Un trade annonce mais pas encore pris : la distinction change tout,
-        # elle merite les deux mots qu'elle coute.
-        titre += " — <i>a venir</i>"
+    # Tous les posts a photo sont transmis, pas seulement les entrees : le
+    # titre doit donc rester lisible quand il n'y a aucune position.
+    if sens in ("short", "long"):
+        titre = (_EMOJI_SENS[sens] + " <b>" + _echapper(ticker or "?")
+                 + " : " + _echapper(sens.upper()) + "</b>")
+        titre += _MENTION.get(statut, "")
+    else:
+        # Sans position, le titre porte deja l'information : inutile d'y
+        # accoler "· analyse", ce serait dit deux fois.
+        titre = "📊 <b>" + _echapper(ticker or "Analyse") + "</b>"
+        if ticker:
+            titre += _MENTION.get(statut, "")
     lignes = [titre]
 
     # Un chiffre absent du texte a ete lu sur le graphique, qui montre souvent
