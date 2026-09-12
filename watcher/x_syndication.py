@@ -100,8 +100,11 @@ def derniers_tweets(handle: str, brut_aussi: bool = False):
         t = (e.get("content") or {}).get("tweet")
         if not isinstance(t, dict):
             continue
-        # On reconstruit la forme attendue par x_api.normaliser, pour que le
-        # filtrage retweet/reponse se comporte comme sur les autres sources.
+        # Forme attendue par x_api.normaliser, pour que le filtrage
+        # retweet/reponse se comporte comme sur les autres sources.
+        # Les images vivent dans entities.media / extended_entities.media,
+        # le format X standard que normaliser sait deja extraire : on les
+        # transmet telles quelles plutot que de les re-extraire a cote.
         bruts.append({
             "id_str": t.get("id_str") or t.get("conversation_id_str"),
             "full_text": t.get("full_text") or t.get("text") or "",
@@ -110,15 +113,19 @@ def derniers_tweets(handle: str, brut_aussi: bool = False):
                 "https://x.com/" + handle + "/status/" + str(t.get("id_str"))),
             "in_reply_to_screen_name": t.get("in_reply_to_screen_name"),
             "retweeted_tweet": t.get("retweeted_status"),
+            "entities": t.get("entities"),
+            "extended_entities": t.get("extended_entities"),
+            # Certaines reponses portent plutot mediaDetails : filet de secours.
             "_images": _images(t),
         })
 
     sortie = x_api.normaliser(bruts, handle)
 
-    # normaliser() ne sait pas lire mediaDetails : on recolle les images.
+    # Si normaliser n'a rien trouve pour un tweet, on retombe sur mediaDetails.
     par_id = {str(b.get("id_str")): b.get("_images") or [] for b in bruts}
     for msg in sortie:
-        msg["images"] = par_id.get(msg["id"], msg.get("images") or [])
+        if not msg.get("images"):
+            msg["images"] = par_id.get(msg["id"], [])
 
     if brut_aussi:
         return sortie, r.text
