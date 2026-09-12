@@ -289,7 +289,8 @@ def envoyer_dernieres_entrees(n: int) -> int:
         if ok:
             envoyes += 1
         print("   envoi " + str(envoyes) + "/" + str(len(retenus)) + " : "
-              + str(analyse.get("ticker")) + " " + str(analyse.get("sens")))
+              + str(analyse.get("ticker")) + " " + str(analyse.get("sens"))
+              + (" AVEC PHOTO " + images[0][-34:] if images else " SANS PHOTO"))
         time.sleep(4)
 
     print(str(envoyes) + " entree(s) envoyee(s)")
