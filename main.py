@@ -36,6 +36,36 @@ _MOTS_TRADE = (
 )
 
 
+def age_heures(tweet: dict):
+    """Age du post en heures, ou None si la date est illisible."""
+    brut = (tweet.get("date") or "").strip()
+    if not brut:
+        return None
+    from datetime import datetime, timezone
+    for forme in (None, "%a %b %d %H:%M:%S %z %Y"):
+        try:
+            d = (datetime.fromisoformat(brut.replace("Z", "+00:00"))
+                 if forme is None else datetime.strptime(brut, forme))
+        except Exception:
+            continue
+        if d.tzinfo is None:
+            d = d.replace(tzinfo=timezone.utc)
+        return (datetime.now(timezone.utc) - d).total_seconds() / 3600.0
+    return None
+
+
+def _trop_vieux(tweet: dict) -> bool:
+    """Ce post est-il trop ancien pour meriter une alerte ?
+
+    Sans date lisible on laisse passer : mieux vaut une alerte de trop qu'un
+    setup manque. C'est le seul cas ou l'on prend ce risque.
+    """
+    if config.AGE_MAX_HEURES <= 0:
+        return False
+    age = age_heures(tweet)
+    return age is not None and age > config.AGE_MAX_HEURES
+
+
 def _merite_analyse(tweet: dict) -> bool:
     """Ce message peut-il contenir un trade ?
 
@@ -130,6 +160,20 @@ def passage() -> None:
         if not nouveaux:
             print("   rien de nouveau")
             memoire.marquer(etat, marque, [])
+            continue
+
+        # Filtre d'age AVANT toute analyse : cela evite le deluge quand une
+        # source revient avec de l'historique, et economise le quota d'IA.
+        recents, anciens = [], []
+        for t in nouveaux:
+            (anciens if _trop_vieux(t) else recents).append(t)
+        if anciens:
+            print("   " + str(len(anciens)) + " post(s) de plus de "
+                  + str(config.AGE_MAX_HEURES) + "h ignore(s) et marque(s) vus")
+            memoire.marquer(etat, marque, [t["id"] for t in anciens])
+        nouveaux = recents
+        if not nouveaux:
+            memoire.sauver(etat)
             continue
 
         for i, t in enumerate(nouveaux):

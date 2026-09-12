@@ -54,6 +54,9 @@ jobs:
           # Comportement : sans photo, ce n'est pas une annonce d'entree.
           ANALYSER_SANS_IMAGE: ${{ vars.ANALYSER_SANS_IMAGE || 'false' }}
           STATUTS_ALERTE: ${{ vars.STATUTS_ALERTE || 'ouverture,intention' }}
+          # Jamais d'alerte sur un post plus vieux que ca, quoi qu'en dise
+          # la memoire : c'est le garde-fou contre le rejeu d'historique.
+          AGE_MAX_HEURES: ${{ vars.AGE_MAX_HEURES || '6' }}
           ALERTER_SANS_TRADE: ${{ vars.ALERTER_SANS_TRADE || 'false' }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           # Mode payant : bascule via les Variables SOURCE_X / FOURNISSEUR_IA

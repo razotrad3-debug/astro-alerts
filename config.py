@@ -123,6 +123,14 @@ ALERTER_SANS_TRADE = _bool("ALERTER_SANS_TRADE", False)
 # Mis a True, on analyse quand meme le texte seul.
 ANALYSER_SANS_IMAGE = _bool("ANALYSER_SANS_IMAGE", True)
 
+# GARDE-FOU D'AGE — le plus important du programme.
+# Le timeline X remonte un an d'historique. Des qu'une source revient apres
+# une absence, ou que la memoire est perdue, des dizaines de vieux posts
+# deviennent "nouveaux" et partent en alertes. Un post plus vieux que cette
+# limite n'est JAMAIS alerte, quoi que dise la memoire : une alerte porte
+# sur un trade qu'on peut encore prendre, pas sur un tweet d'octobre dernier.
+AGE_MAX_HEURES = _int("AGE_MAX_HEURES", 6)
+
 # Au tout premier lancement, on note juste ou on en est sans rien envoyer,
 # pour eviter de recevoir d'un coup les 20 derniers tweets du mec.
 SILENCE_PREMIER_RUN = _bool("SILENCE_PREMIER_RUN", True)
