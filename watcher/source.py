@@ -1,4 +1,6 @@
 """Choisit la source des tweets selon SOURCE_X, et expose une seule fonction."""
+import time
+
 import config
 from . import x_api, x_apify, x_syndication, x_telegram
 
@@ -39,7 +41,7 @@ def _fusionner(*listes):
 
 def nom() -> str:
     if config.SOURCE_X == "auto":
-        return "X + Telegram (fusionnes)"
+        return "X + Apify + Telegram (fusionnes)"
     if config.SOURCE_X == "syndication":
         return "X syndication"
     if config.SOURCE_X == "telegram":
@@ -62,24 +64,46 @@ def derniers_tweets(handle: str, brut_aussi: bool = False):
         # On interroge les DEUX et on fusionne : X est plus complet mais
         # refuse par intermittence, Telegram est partiel mais toujours la.
         # Leur reunion est plus sure que l'un ou l'autre seul.
-        depuis_x = depuis_tg = []
+        depuis_x = depuis_tg = depuis_apify = []
         sources = []
+
+        # Gratuit et illimite, mais refuse souvent (429 selon l'IP).
         try:
             depuis_x = x_syndication.derniers_tweets(handle)
             sources.append("x(" + str(len(depuis_x)) + ")")
         except x_syndication.ErreurSyndication as e:
             print("[source] X indisponible : " + str(e)[:90])
+
+        # Gratuit et toujours disponible, mais il n'y relaie pas tout.
         try:
             depuis_tg = x_telegram.derniers_tweets(config.TELEGRAM_CANAL)
             sources.append("telegram(" + str(len(depuis_tg)) + ")")
         except x_telegram.ErreurTelegram as e:
             print("[source] Telegram indisponible : " + str(e)[:90])
 
-        if not depuis_x and not depuis_tg:
+        # Apify voit tout mais chaque tweet ramene est facture : on ne
+        # l'appelle qu'a intervalle espace, pour tenir dans les credits
+        # offerts. Il sert de filet sur ce que les deux autres ont manque.
+        if config.APIFY_TOKEN:
+            from . import etat
+            ecoule = (time.time() - etat.horodatage("apify")) / 60.0
+            if ecoule >= config.APIFY_INTERVALLE_MIN:
+                try:
+                    depuis_apify = x_apify.derniers_tweets(handle)
+                    etat.poser_horodatage("apify")
+                    sources.append("apify(" + str(len(depuis_apify)) + ")")
+                except x_apify.ErreurApify as e:
+                    print("[source] Apify indisponible : " + str(e)[:90])
+            else:
+                print("[source] Apify dans " + str(int(config.APIFY_INTERVALLE_MIN - ecoule))
+                      + " min (credits menages)")
+
+        if not depuis_x and not depuis_tg and not depuis_apify:
             raise ErreurSource("aucune source disponible")
 
-        _DERNIERE = "+".join(sources)
-        fusion = _fusionner(depuis_x, depuis_tg)
+        _DERNIERE = "+".join(sources) or "aucune"
+        # Ordre de priorite : X, puis Apify, puis l'apercu Telegram, plus pauvre.
+        fusion = _fusionner(depuis_x, depuis_apify, depuis_tg)
         if brut_aussi:
             return fusion, {}
         return fusion

@@ -34,6 +34,27 @@ def sauver(etat: dict) -> None:
         print("[etat] sauvegarde impossible : " + str(e))
 
 
+def horodatage(nom: str):
+    """Dernier instant (epoch) enregistre sous ce nom, ou 0."""
+    try:
+        return float(charger().get("_horodatages", {}).get(nom, 0))
+    except Exception:
+        return 0.0
+
+
+def poser_horodatage(nom: str) -> None:
+    """Note maintenant sous ce nom, sans toucher au reste de la memoire.
+
+    Chaque passage GitHub est un processus neuf : une variable en memoire ne
+    survivrait pas. Il faut donc ecrire sur disque pour espacer une source
+    facturee d'un passage a l'autre.
+    """
+    import time as _t
+    etat = charger()
+    etat.setdefault("_horodatages", {})[nom] = _t.time()
+    sauver(etat)
+
+
 def cle(handle: str, source: str = "") -> str:
     """Cle de memoire, propre a chaque source.
 

@@ -69,6 +69,10 @@ APIFY_ACTEUR = os.getenv("APIFY_ACTEUR", "xtdata~twitter-x-user-tweets-scraper")
 # Chaque resultat ramene est facture. 5 suffit largement entre deux passages
 # et fait tenir le mois dans les 5 $ offerts ; 20 les epuiserait.
 APIFY_MAX = _int("APIFY_MAX", 5)
+# Apify est facture au tweet ramene (~0,008 $ par passage de 5, mesure le
+# 12/09/2026). Les 5 $ offerts chaque mois ne couvrent donc qu'environ un
+# passage par heure. On l'espace, pendant que Telegram assure la reactivite.
+APIFY_INTERVALLE_MIN = _int("APIFY_INTERVALLE_MIN", 60)
 
 # ── Quelle IA lit les tweets ? ────────────────────────────
 # "gemini"    : gratuit, teste et fonctionnel — defaut
