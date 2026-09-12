@@ -9,6 +9,10 @@ on:
     # ramene, ~20 par appel). Voir la section Cout du README.
     - cron: "*/15 * * * *"
   workflow_dispatch:        # bouton "Run workflow" pour tester a la main
+    inputs:
+      entrees:
+        description: "Renvoyer les N dernieres entrees (0 = passage normal)"
+        default: "0"
 
 # Necessaire pour que le job puisse recommiter state.json (la memoire du bot).
 permissions:
@@ -50,7 +54,12 @@ jobs:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-        run: python main.py
+        run: |
+          if [ "${{ github.event.inputs.entrees }}" != "" ] && [ "${{ github.event.inputs.entrees }}" != "0" ]; then
+            python main.py --entrees "${{ github.event.inputs.entrees }}"
+          else
+            python main.py
+          fi
 
       - name: Memoriser les tweets traites
         run: |

@@ -245,6 +245,57 @@ def trouver_chat_id() -> int:
     return 0
 
 
+def envoyer_dernieres_entrees(n: int) -> int:
+    """Renvoie les n dernieres ENTREES du timeline, en ignorant la memoire.
+
+    Sert a verifier le systeme sur du vrai contenu, ou a rattraper apres une
+    interruption. Contrairement a --rejouer, on ne s'arrete pas aux N derniers
+    messages : on remonte jusqu'a trouver N entrees, puisque la plupart des
+    posts sont du suivi de position.
+    """
+    handle = config.HANDLES[0]
+    try:
+        messages = source.derniers_tweets(handle)
+    except Exception as e:
+        print("Lecture impossible : " + str(e))
+        return 1
+
+    print(str(len(messages)) + " message(s) disponibles, recherche des entrees...")
+
+    retenus = []
+    for t in reversed(messages):          # du plus recent au plus ancien
+        if len(retenus) >= n:
+            break
+        if not t.get("images") and not config.ANALYSER_SANS_IMAGE:
+            continue
+        if not _merite_analyse(t):
+            continue
+        analyse = vision.analyser(t)
+        if analyse.get("erreur"):
+            print("   erreur : " + str(analyse["erreur"])[:70])
+            continue
+        statut = (analyse.get("statut") or "?").lower()
+        print("   [" + statut + "] " + t["texte"][:55].replace("\n", " "))
+        if statut in config.STATUTS_ALERTE:
+            retenus.append((t, analyse))
+        time.sleep(4)                     # palier gratuit : limite par minute
+
+    # On envoie du plus ancien au plus recent, pour lire le fil dans l'ordre.
+    envoyes = 0
+    for t, analyse in reversed(retenus):
+        texte = message.construire(t, analyse)
+        images = t.get("images") or []
+        ok = telegram.envoyer_photo(images[0], texte) if images else telegram.envoyer(texte)
+        if ok:
+            envoyes += 1
+        print("   envoi " + str(envoyes) + "/" + str(len(retenus)) + " : "
+              + str(analyse.get("ticker")) + " " + str(analyse.get("sens")))
+        time.sleep(4)
+
+    print(str(envoyes) + " entree(s) envoyee(s)")
+    return 0
+
+
 def rejouer(n: int) -> None:
     """Re-analyse les n derniers tweets et envoie, en ignorant la memoire."""
     for handle in config.HANDLES:
@@ -262,6 +313,8 @@ def main() -> int:
     ap.add_argument("--test", action="store_true", help="diagnostic complet")
     ap.add_argument("--rejouer", type=int, metavar="N", help="re-analyse les N derniers tweets")
     ap.add_argument("--chatid", action="store_true", help="affiche ton TELEGRAM_CHAT_ID")
+    ap.add_argument("--entrees", type=int, metavar="N",
+                    help="renvoie les N dernieres ENTREES trouvees dans le timeline")
     args = ap.parse_args()
 
     # Avant le controle de configuration : c'est justement la commande qui
@@ -279,6 +332,9 @@ def main() -> int:
 
     if args.test:
         return diagnostic()
+
+    if args.entrees:
+        return envoyer_dernieres_entrees(args.entrees)
 
     if args.rejouer:
         rejouer(args.rejouer)
