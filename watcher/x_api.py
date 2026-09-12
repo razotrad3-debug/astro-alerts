@@ -80,7 +80,10 @@ def _images(tweet: dict) -> list:
                 base = base[: -len(ext)]
                 break
         if base not in [t.split("?")[0] for t in trouvees]:
-            trouvees.append(base + "?format=" + fmt + "&name=large")
+            # name=orig plutot que name=large : "large" plafonne a 2048 px,
+            # "orig" rend l'image telle qu'il l'a postee. Sur un chart, ces
+            # pixels en plus sont exactement ceux des chiffres d'axe.
+            trouvees.append(base + "?format=" + fmt + "&name=orig")
 
     conteneurs = []
     for cle in ("extendedEntities", "extended_entities", "entities"):
