@@ -301,6 +301,49 @@ def envoyer_dernieres_entrees(n: int) -> int:
     return 0
 
 
+def inspecter_source() -> int:
+    """Affiche la forme brute des tweets renvoyes par la source.
+
+    Sert quand une source repond mais qu'un champ manque a l'arrivee : sans
+    voir le JSON reel, on ne peut que deviner ou sont les images.
+    """
+    import json as _json
+    import re as _re
+
+    handle = config.HANDLES[0]
+    try:
+        _, brut = source.derniers_tweets(handle, brut_aussi=True)
+    except Exception as e:
+        print("ECHEC : " + str(e))
+        return 1
+
+    print("source : " + source.derniere_source())
+    if not isinstance(brut, str):
+        print("reponse non textuelle : " + str(type(brut)))
+        return 1
+
+    m = _re.search(r'id="__NEXT_DATA__"[^>]*>(.*?)</script>', brut, _re.S)
+    if not m:
+        print("pas de __NEXT_DATA__")
+        return 1
+    d = _json.loads(m.group(1))
+    entrees = (d.get("props", {}).get("pageProps", {})
+                .get("timeline", {}) or {}).get("entries") or []
+    print(str(len(entrees)) + " entrees")
+
+    for e in entrees[:6]:
+        t = (e.get("content") or {}).get("tweet") or {}
+        cles = sorted(t.keys())
+        media = [c for c in cles if "media" in c.lower() or "photo" in c.lower()
+                 or "entit" in c.lower() or "card" in c.lower()]
+        print("")
+        print("  id " + str(t.get("id_str")) + " | " + str(len(cles)) + " cles")
+        print("  cles liees aux medias : " + str(media))
+        for c in media:
+            print("     " + c + " = " + _json.dumps(t.get(c))[:300])
+    return 0
+
+
 def rejouer(n: int) -> None:
     """Re-analyse les n derniers tweets et envoie, en ignorant la memoire."""
     for handle in config.HANDLES:
@@ -318,6 +361,8 @@ def main() -> int:
     ap.add_argument("--test", action="store_true", help="diagnostic complet")
     ap.add_argument("--rejouer", type=int, metavar="N", help="re-analyse les N derniers tweets")
     ap.add_argument("--chatid", action="store_true", help="affiche ton TELEGRAM_CHAT_ID")
+    ap.add_argument("--inspecter", action="store_true",
+                    help="affiche la forme brute des tweets de la source")
     ap.add_argument("--entrees", type=int, metavar="N",
                     help="renvoie les N dernieres ENTREES trouvees dans le timeline")
     args = ap.parse_args()
@@ -337,6 +382,9 @@ def main() -> int:
 
     if args.test:
         return diagnostic()
+
+    if args.inspecter:
+        return inspecter_source()
 
     if args.entrees:
         return envoyer_dernieres_entrees(args.entrees)
