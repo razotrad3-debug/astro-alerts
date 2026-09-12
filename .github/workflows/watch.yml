@@ -85,15 +85,25 @@ jobs:
 
       - name: Memoriser les tweets traites
         run: |
-          if [ -n "$(git status --porcelain state.json)" ]; then
-            git config user.name  "x-short-watcher"
+          # Battement quotidien : GitHub desactive TOUS les workflows
+          # planifies d'un repo apres 60 jours sans activite. Un workflow
+          # planifie ne peut donc pas se ranimer lui-meme. La parade est
+          # de garantir au moins un commit par jour, quel que soit le
+          # declencheur — meme quand le compte surveille ne poste rien.
+          AUJOURDHUI=$(date -u +%F)
+          if [ "$(cat battement.txt 2>/dev/null)" != "$AUJOURDHUI" ]; then
+            echo "$AUJOURDHUI" > battement.txt
+          fi
+
+          if [ -n "$(git status --porcelain state.json battement.txt)" ]; then
+            git config user.name  "astro-alerts"
             git config user.email "actions@github.com"
-            git add state.json
-            git commit -m "state: tweets traites [skip ci]"
-            # Un autre passage a pu committer entre-temps ; on rebase avant
-            # de pousser plutot que d'echouer le job.
+            git add state.json battement.txt
+            git commit -m "etat du watcher [skip ci]"
+            # Un autre passage a pu committer entre-temps : on rebase
+            # plutot que d'echouer le job.
             git pull --rebase --autostash origin "${GITHUB_REF_NAME}"
             git push
           else
-            echo "Rien de nouveau, state.json inchange."
+            echo "Rien a memoriser."
           fi
