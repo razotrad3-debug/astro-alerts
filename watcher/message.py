@@ -61,17 +61,37 @@ def _nombre(v) -> str:
     return ("{:,.8f}".format(f)).rstrip("0").rstrip(".").replace(",", " ")
 
 
+# Les sources ne datent pas pareil : Telegram rend de l'ISO, Apify et X le
+# format Twitter historique ("Sat Sep 12 21:06:13 +0000 2026"). On ne passe
+# pas par strptime avec %b, qui depend de la langue du systeme et echouerait
+# sur une machine francaise.
+_MOIS = {m: i + 1 for i, m in enumerate(
+    "Jan Feb Mar Apr May Jun Jul Aug Sep Oct Nov Dec".split())}
+
+
 def _date(brut) -> str:
     """Date du post en JJ/MM/AAAA a HHhMM, ou chaine vide si illisible."""
     if not brut:
         return ""
-    texte = str(brut).strip().replace("Z", "+00:00")
+    from datetime import datetime
+    texte = str(brut).strip()
+
     try:
-        from datetime import datetime
-        d = datetime.fromisoformat(texte)
+        return datetime.fromisoformat(
+            texte.replace("Z", "+00:00")).strftime("%d/%m/%Y a %Hh%M")
     except Exception:
-        return ""
-    return d.strftime("%d/%m/%Y a %Hh%M")
+        pass
+
+    morceaux = texte.split()
+    if len(morceaux) >= 6 and morceaux[1] in _MOIS:
+        try:
+            heure = morceaux[3].split(":")
+            return "{:02d}/{:02d}/{} a {}h{}".format(
+                int(morceaux[2]), _MOIS[morceaux[1]], morceaux[5],
+                heure[0], heure[1])
+        except Exception:
+            pass
+    return ""
 
 
 def construire(tweet: dict, analyse: dict) -> str:
