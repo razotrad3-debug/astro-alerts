@@ -28,6 +28,26 @@ def _echapper(t) -> str:
     return str(t).replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
 
 
+def _aerer(texte: str) -> str:
+    """Ne garde que les sauts de ligne qui suivent une phrase terminee.
+
+    Le modele coupe parfois au milieu d'une phrase : on recolle ces
+    morceaux-la, et on normalise les paragraphes restants a une ligne vide.
+    Garantie mecanique, plutot que de s'en remettre a la consigne.
+    """
+    import re
+    if not texte:
+        return ""
+    # On marque d'abord les sauts LEGITIMES — ceux qui suivent une phrase
+    # terminee — pour qu'ils survivent au nettoyage qui suit.
+    texte = re.sub(r"([.!?:…])[ \t]*\n+[ \t]*", lambda m: m.group(1) + "\x00", texte)
+    # Tout saut restant coupait une phrase : il redevient une espace.
+    texte = re.sub(r"[ \t]*\n+[ \t]*", " ", texte)
+    # Puis les sauts legitimes deviennent des paragraphes.
+    texte = texte.replace("\x00", "\n\n")
+    return texte.strip()
+
+
 def _nombre(v) -> str:
     """Affiche un prix sans notation scientifique ni zeros inutiles."""
     if v is None:
@@ -101,7 +121,7 @@ def construire(tweet: dict, analyse: dict) -> str:
 
     if analyse.get("resume"):
         lignes.append("")
-        lignes.append(_echapper(analyse["resume"]))
+        lignes.append(_echapper(_aerer(analyse["resume"])))
 
     lignes.append("")
     quand = _date(tweet.get("date"))
