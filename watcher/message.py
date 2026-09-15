@@ -48,6 +48,25 @@ def _aerer(texte: str) -> str:
     return texte.strip()
 
 
+def _prix(v):
+    """La valeur si c'est un prix affichable, None sinon.
+
+    Le modele renvoie parfois null, 0 ou une chaine vide a la place d'un
+    prix qu'il n'a pas lu. Sans ce filtre, l'alerte affichait "TP : " tout
+    court, ou "TP : 0" — pire qu'une ligne absente, puisque ca se lit comme
+    une information.
+    """
+    if v is None or isinstance(v, bool):
+        return None
+    try:
+        f = float(v)
+    except Exception:
+        return None
+    if f <= 0 or f != f or f in (float("inf"), float("-inf")):
+        return None
+    return f
+
+
 def _nombre(v) -> str:
     """Affiche un prix sans notation scientifique ni zeros inutiles."""
     if v is None:
@@ -126,15 +145,17 @@ def construire(tweet: dict, analyse: dict) -> str:
     def _marque(champ):
         return " <i>(chart)</i>" if champ in hors else ""
 
-    if analyse.get("entree") is not None:
-        lignes.append("Entry : <b>" + _nombre(analyse["entree"]) + "</b>" + _marque("entree"))
+    entree = _prix(analyse.get("entree"))
+    if entree is not None:
+        lignes.append("Entry : <b>" + _nombre(entree) + "</b>" + _marque("entree"))
     elif analyse.get("zone_entree"):
         lignes.append("Entry : <b>" + _echapper(analyse["zone_entree"]) + "</b>" + _marque("entree"))
 
     # Le stop porte toujours sa provenance : lu dans le texte (rien a
     # signaler), lu sur le graphique, ou calcule ici faute d'etre lisible.
     # Un stop estime ne doit jamais pouvoir passer pour un stop annonce.
-    if analyse.get("stop_loss") is not None:
+    stop = _prix(analyse.get("stop_loss"))
+    if stop is not None:
         source = analyse.get("stop_source")
         if source == "estime":
             pct = analyse.get("stop_pct")
@@ -144,10 +165,16 @@ def construire(tweet: dict, analyse: dict) -> str:
         else:
             note = " <i>(chart)</i>" if source == "chart" else ""
             prefixe = ""
-        lignes.append("Stop : <b>" + prefixe + _nombre(analyse["stop_loss"])
-                      + "</b>" + note)
+        lignes.append("Stop : <b>" + prefixe + _nombre(stop) + "</b>" + note)
 
-    tps = analyse.get("take_profits") or []
+    # Pas d'objectif lisible : pas de ligne du tout. On ne garde que les
+    # prix reels, sans doublon, dans l'ordre donne par le modele.
+    tps, vus = [], set()
+    for x in (analyse.get("take_profits") or []):
+        p = _prix(x)
+        if p is not None and p not in vus:
+            vus.add(p)
+            tps.append(p)
     if tps:
         lignes.append("TP : " + " · ".join(_nombre(x) for x in tps) + _marque("TP"))
 
