@@ -37,6 +37,13 @@ def _int(nom: str, defaut: int) -> int:
         return defaut
 
 
+def _float(nom: str, defaut: float) -> float:
+    try:
+        return float(os.getenv(nom, "").strip().replace(",", "."))
+    except Exception:
+        return defaut
+
+
 # ── Qui on surveille ──────────────────────────────────────
 # Plusieurs handles possibles, separes par des virgules, sans le @.
 HANDLES = [h.strip().lstrip("@") for h in
@@ -129,6 +136,29 @@ ALERTER_SANS_TRADE = _bool("ALERTER_SANS_TRADE", False)
 # Un tweet sans image ne contient presque jamais le detail d'une entree.
 # Mis a True, on analyse quand meme le texte seul.
 ANALYSER_SANS_IMAGE = _bool("ANALYSER_SANS_IMAGE", True)
+
+# ── Le stop ───────────────────────────────────────────────
+# Il est affiche en priorite tel qu'il est lu (texte ou boite TradingView).
+# Quand il n'est pas lisible, on le DEDUIT de l'entree, et l'alerte le
+# marque comme estime pour qu'on ne le confonde jamais avec un stop annonce.
+#
+# 0,9 % vient de la mesure de 10 entrees datees d'@astronomer_zero (juillet
+# a septembre 2026), stops relevés sur l'outil de position TradingView :
+#   0,15 · 0,43 · 0,45 · 0,54 · 0,56 · 0,73 · 0,81 · 0,82 · 1,18 · 2,13 %
+# Moyenne 0,78 %, mediane 0,65 %. A 0,90 % on couvre 8 de ces 10 trades ;
+# monter a 1,20 % en couvre un de plus pour un tiers de risque en plus.
+# C'est le point d'inflexion, donc le defaut.
+#
+# Son trade POSITIONNEL (long journalier du 21/08) tenait un stop a 5,77 % :
+# une estimation a 0,9 % n'a de sens que sur ses entrees intraday et swing,
+# qui sont la quasi-totalite de ce qu'il publie.
+STOP_ESTIME = _bool("STOP_ESTIME", True)
+STOP_ESTIME_PCT = _float("STOP_ESTIME_PCT", 0.9)
+
+# Au-dela de cet ecart, un stop lu sur une image ne decrit plus l'entree du
+# jour : c'est presque toujours une boite qui raconte un trade anterieur.
+# On le jette et on estime a la place, plutot que d'afficher un chiffre faux.
+STOP_ECART_MAX_PCT = _float("STOP_ECART_MAX_PCT", 8.0)
 
 # GARDE-FOU D'AGE — le plus important du programme.
 # Le timeline X remonte un an d'historique. Des qu'une source revient apres

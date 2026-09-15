@@ -9,6 +9,7 @@ agirait dessus. D'ou les champs nullables et le champ "confiance".
 import base64
 import copy
 import json
+import re
 import time
 
 import anthropic
@@ -49,6 +50,22 @@ L'outil "position long/short" de TradingView dessine trois elements : une
 ligne d'ENTREE, une zone de STOP d'un cote, une zone d'OBJECTIF de l'autre.
 Sur un short, le stop est au-dessus de l'entree et l'objectif en dessous.
 Des lignes annotees "TP 1", "TP 2" sont des objectifs intermediaires.
+
+OU LIRE LE STOP EXACTEMENT
+Le stop n'est PAS la ligne d'entree : c'est le BORD EXTERIEUR de la zone de
+stop, le plus eloigne de l'entree. Sur un short, le haut de la zone ; sur un
+long, le bas. Cette zone est souvent grise ou rouge, l'objectif est vert.
+Le prix se lit sur l'axe de droite : TradingView y pose une etiquette grise
+(ou noire) pour chaque bord de l'outil de position. Prends le chiffre de
+l'etiquette, pas une estimation a l'oeil.
+Exemple reel : etiquettes 82 184,72 / 81 225,16 / 79 295,40 sur un short
+-> stop 82184.72, entree 81225.16, objectif 79295.40.
+
+Ne confonds pas la zone de stop avec les rectangles de contexte qu'il trace
+(POI, VAH, gap zone) : ceux-la portent un nom ecrit dedans et commencent
+souvent bien avant la bougie d'entree. Si tu n'arrives pas a isoler le bord
+de la zone de stop avec certitude, mets stop_loss a null. Un stop absent est
+rattrape par le programme ; un stop faux part en alerte.
 
 PIEGE MAJEUR : une boite de position tracee sur le graphique montre tres
 souvent un trade PASSE ou une projection, pas celui qui est annonce dans le
@@ -198,7 +215,10 @@ _OUTIL = {
                 "type": ["string", "null"],
                 "description": "Zone d'entree quand c'est une fourchette, ex: 112400 - 113100.",
             },
-            "stop_loss": {"type": ["number", "null"]},
+            "stop_loss": {
+                "type": ["number", "null"],
+                "description": "Prix du stop : bord EXTERIEUR de la zone de stop de l'outil de position (au-dessus de l'entree sur un short, en dessous sur un long), ou prix annonce dans le texte. null si tu ne peux pas le lire avec certitude — ne le devine jamais.",
+            },
             "take_profits": {
                 "type": "array",
                 "items": {"type": "number"},
@@ -560,6 +580,96 @@ def _controler_provenance(analyse: dict, tweet: dict) -> dict:
     return analyse
 
 
+def _bord_zone(zone, sens: str) -> float:
+    """Bord de la zone d'entree du cote du stop, ou None.
+
+    On ne prend pas le milieu : le stop doit etre au-dela de TOUTE la zone.
+    Sur un short, c'est donc la borne haute ; sur un long, la borne basse.
+    """
+    if not zone:
+        return None
+    valeurs = []
+    for b in re.findall(r"\d[\d\s.,]*", str(zone)):
+        try:
+            valeurs.append(float(b.replace(" ", "").replace(",", "")))
+        except Exception:
+            pass
+    if not valeurs:
+        return None
+    return max(valeurs) if sens == "short" else min(valeurs)
+
+
+def _arrondir_stop(v: float) -> float:
+    """Arrondi lisible : un stop estime ne doit pas afficher de fausse precision."""
+    a = abs(v)
+    pas = 50 if a >= 10000 else 5 if a >= 1000 else 0.5 if a >= 10 else None
+    if pas is None:
+        return round(v, 4)
+    return round(round(v / pas) * pas, 2)
+
+
+def _completer_stop(analyse: dict, tweet: dict) -> dict:
+    """Valide le stop lu, et le deduit de l'entree quand il manque.
+
+    Trois provenances possibles, toujours distinguees dans l'alerte :
+      texte  — il l'a ecrit noir sur blanc
+      chart  — lu sur l'image seule, donc a prendre avec des pincettes
+      estime — calcule ici, a partir de la distance mesuree sur son historique
+
+    Un stop du mauvais cote de l'entree, ou absurdement loin, est une erreur
+    de lecture (typiquement une vieille boite de position restee sur le
+    graphique). On le jette et on estime : mieux vaut un ordre de grandeur
+    annonce comme tel qu'un prix precis et faux.
+    """
+    if analyse.get("erreur"):
+        return analyse
+
+    sens = (analyse.get("sens") or "").lower()
+    analyse["stop_source"] = None
+    if sens not in ("short", "long"):
+        return analyse
+
+    entree = analyse.get("entree")
+    if entree is None:
+        entree = _bord_zone(analyse.get("zone_entree"), sens)
+
+    stop = analyse.get("stop_loss")
+    hors = analyse.get("chiffres_hors_texte") or []
+
+    if stop is not None and entree:
+        bon_cote = stop > entree if sens == "short" else stop < entree
+        ecart = abs(stop - entree) / abs(entree) * 100.0
+        if not bon_cote or ecart > config.STOP_ECART_MAX_PCT:
+            print("[vision] stop " + str(stop) + " incoherent avec l'entree "
+                  + str(entree) + " (" + sens + ") : ecarte, on estime.")
+            analyse["stop_ecarte"] = stop
+            stop = None
+
+    if stop is not None:
+        analyse["stop_loss"] = stop
+        analyse["stop_source"] = "chart" if "stop" in hors else "texte"
+        return analyse
+
+    analyse["chiffres_hors_texte"] = [x for x in hors if x != "stop"]
+    analyse["stop_loss"] = None
+
+    # On n'estime que sur un trade qu'on peut encore prendre. Afficher un
+    # stop calcule sous un post de suivi ou de cloture ne sert a rien et
+    # laisserait croire que la position est toujours a proteger.
+    if (analyse.get("statut") or "").lower() not in ("ouverture", "intention"):
+        return analyse
+
+    if not entree or not config.STOP_ESTIME:
+        return analyse
+
+    pct = config.STOP_ESTIME_PCT / 100.0
+    brut = entree * (1 + pct) if sens == "short" else entree * (1 - pct)
+    analyse["stop_loss"] = _arrondir_stop(brut)
+    analyse["stop_source"] = "estime"
+    analyse["stop_pct"] = config.STOP_ESTIME_PCT
+    return analyse
+
+
 def analyser(tweet: dict) -> dict:
     """Analyse un tweet normalise et renvoie les champs decrits par _OUTIL.
 
@@ -582,4 +692,6 @@ def analyser(tweet: dict) -> dict:
     if not isinstance(out, dict):
         out = {"erreur": "Reponse d'analyse inattendue."}
     out["images_lues"] = len(images)
-    return _controler_provenance(out, tweet)
+    # L'ordre compte : la provenance marque d'abord les chiffres absents du
+    # texte, puis _completer_stop s'appuie sur ce marquage.
+    return _completer_stop(_controler_provenance(out, tweet), tweet)

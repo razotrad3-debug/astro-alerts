@@ -131,9 +131,21 @@ def construire(tweet: dict, analyse: dict) -> str:
     elif analyse.get("zone_entree"):
         lignes.append("Entry : <b>" + _echapper(analyse["zone_entree"]) + "</b>" + _marque("entree"))
 
-    # Le stop n'est plus affiche : sur ce compte il vient presque toujours du
-    # graphique et non du texte, donc il decrit souvent un trade anterieur.
-    # Il reste extrait et disponible dans l'analyse si on veut le remettre.
+    # Le stop porte toujours sa provenance : lu dans le texte (rien a
+    # signaler), lu sur le graphique, ou calcule ici faute d'etre lisible.
+    # Un stop estime ne doit jamais pouvoir passer pour un stop annonce.
+    if analyse.get("stop_loss") is not None:
+        source = analyse.get("stop_source")
+        if source == "estime":
+            pct = analyse.get("stop_pct")
+            note = (" <i>(est. " + ("%g" % pct).replace(".", ",") + " %)</i>"
+                    if pct else " <i>(estime)</i>")
+            prefixe = "~"
+        else:
+            note = " <i>(chart)</i>" if source == "chart" else ""
+            prefixe = ""
+        lignes.append("Stop : <b>" + prefixe + _nombre(analyse["stop_loss"])
+                      + "</b>" + note)
 
     tps = analyse.get("take_profits") or []
     if tps:
