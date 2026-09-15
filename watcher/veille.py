@@ -48,13 +48,18 @@ def compteur(handle: str):
 def a_publie(handle: str, etat) -> bool:
     """Le compteur a-t-il bouge depuis la derniere verification ?
 
+    NE CONSOMME PAS le signal : le compteur n'est enregistre qu'une fois le
+    rattrapage reussi, via confirmer(). Sans cette separation, un appel
+    Apify bride ou en echec effacait quand meme la detection, et le post
+    n'arrivait que des heures plus tard, quand Telegram le relayait enfin.
+
     Premiere fois : on enregistre sans rien declencher, sinon on paierait
-    un appel Apify a chaque nouveau deploiement.
+    un rattrapage a chaque nouveau deploiement.
     """
     nom, valeur = compteur(handle)
     if valeur is None:
         # Aucun miroir : on ne peut pas savoir. On ne declenche pas — les
-        # sources gratuites tournent quand meme, et le filet horaire reste.
+        # sources gratuites tournent quand meme.
         return False
 
     memoire = etat.charger()
@@ -62,16 +67,32 @@ def a_publie(handle: str, etat) -> bool:
     cle = handle + "@" + nom
     ancien = cles.get(cle)
 
-    if ancien != valeur:
+    if ancien is None:
         cles[cle] = valeur
         etat.sauver(memoire)
-    if ancien is None:
         print("[veille] compteur initialise a " + str(valeur)
               + " (" + nom + "), rien a rattraper")
         return False
+
     if valeur == ancien:
         return False
 
     print("[veille] " + str(valeur - ancien) + " publication(s) detectee(s) "
-          + "(" + nom + " : " + str(ancien) + " -> " + str(valeur) + ")")
+          + "(" + nom + " : " + str(ancien) + " -> " + str(valeur)
+          + "), rattrapage demande")
     return True
+
+
+def confirmer(handle: str, etat) -> None:
+    """Enregistre le compteur courant : le rattrapage a abouti.
+
+    Tant qu'on n'appelle pas cette fonction, a_publie() continuera de
+    signaler qu'il reste quelque chose a rattraper — le prochain passage
+    reessaiera donc au lieu d'abandonner.
+    """
+    nom, valeur = compteur(handle)
+    if valeur is None:
+        return
+    memoire = etat.charger()
+    memoire.setdefault("_compteurs", {})[handle + "@" + nom] = valeur
+    etat.sauver(memoire)

@@ -171,6 +171,14 @@ def passage() -> None:
                     nouveaux = [t for t in rattrape if t["id"] not in vus]
                     print("   Apify rapporte " + str(len(nouveaux))
                           + " post(s) que les sources gratuites n'avaient pas")
+                    # Le rattrapage a abouti : on peut enfin avancer le
+                    # compteur. S'il avait echoue, le signal resterait pose
+                    # et le passage suivant reessaierait.
+                    veille.confirmer(handle, memoire)
+                    etat = memoire.charger()
+                else:
+                    print("   rattrapage impossible pour l'instant, "
+                          "le signal reste pose pour le prochain passage")
 
         if not nouveaux:
             print("   rien de nouveau")

@@ -82,10 +82,17 @@ def derniers_tweets(handle: str, brut_aussi: bool = False):
     # en reprises au passage suivant. En mode boucle (un passage par minute),
     # ce temps mort dominerait tout le cycle.
     global _QUARANTAINE
-    if _QUARANTAINE and time.time() < _QUARANTAINE:
-        reste = int(_QUARANTAINE - time.time())
+    # La quarantaine doit survivre d'un passage a l'autre : sur GitHub chaque
+    # passage est un processus neuf, donc une variable en memoire ne servait a
+    # rien et on reperdait 48 s de reprises a chaque fois.
+    from . import etat as _etat
+    depuis = time.time() - _etat.horodatage("x_429")
+    if depuis < QUARANTAINE_SECONDES:
         raise ErreurSyndication(
-            "X en quarantaine encore " + str(reste) + "s (429 recent).")
+            "X en quarantaine encore " + str(int(QUARANTAINE_SECONDES - depuis))
+            + "s (429 au passage precedent).")
+    if _QUARANTAINE and time.time() < _QUARANTAINE:
+        raise ErreurSyndication("X en quarantaine (429 recent).")
 
     # Le 429 est intermittent : le meme runner peut etre refuse puis accepte
     # quelques secondes plus tard. Sans reprises, on retombe inutilement sur
@@ -114,6 +121,7 @@ def derniers_tweets(handle: str, brut_aussi: bool = False):
 
     if r.status_code == 429:
         _QUARANTAINE = time.time() + QUARANTAINE_SECONDES
+        _etat.poser_horodatage("x_429")
         raise ErreurSyndication(
             "syndication.twitter.com : 429 apres 4 essais. X mis en "
             "quarantaine " + str(QUARANTAINE_SECONDES // 60) + " min."
