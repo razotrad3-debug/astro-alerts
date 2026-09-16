@@ -1,5 +1,16 @@
 name: x-short-watcher
 
+# DIAGNOSTIC TEMPORAIRE — identifier les deux minuteurs.
+# Deux sources postent l'evenement "verifier" toutes les 2 min, decalees de
+# ~40 s. Elles arrivent sous le meme compte GitHub, donc l'API ne les
+# distingue pas. On expose ici la charge utile du dispatch : le Worker
+# Cloudflare (minuteur/worker.js) n'en envoie aucune, une tache cron-job.org
+# peut en envoyer une. A retirer une fois le doublon supprime.
+run-name: >-
+  ${{ github.event_name == 'repository_dispatch'
+      && format('dispatch charge={0}', toJSON(github.event.client_payload))
+      || github.event_name }}
+
 on:
   schedule:
     # Toutes les 15 minutes. Le minimum autorise par GitHub est 5 min, mais
