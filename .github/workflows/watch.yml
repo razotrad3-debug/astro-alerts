@@ -38,16 +38,53 @@ jobs:
     timeout-minutes: 10
 
     steps:
+      # GARDE-FOU ANTI-CHEVAUCHEMENT.
+      # `concurrency` ci-dessus ne suffit pas : mesure le 16/09/2026, deux
+      # passages ont tourne ensemble (02:06:56-02:08:45 et 02:08:17-02:10:40).
+      # Le second a lu le state.json d'AVANT l'ecriture du premier, a donc cru
+      # le tweet nouveau et a envoye une deuxieme alerte identique, puis a
+      # echoue en poussant par-dessus. Aucune dedup applicative ne peut
+      # rattraper ca : les deux processus lisent la meme memoire perimee.
+      #
+      # On tranche par l'identifiant de passage : le plus ancien garde la
+      # main, les autres s'effacent. Deterministe, donc pas de nouvelle course.
+      - name: Un seul passage a la fois
+        id: garde
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          encours=$(curl -sS -H "Authorization: Bearer $GH_TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/runs?status=in_progress&per_page=100" \
+            | jq -r --arg self "$GITHUB_RUN_ID" --arg wf "$GITHUB_WORKFLOW" \
+              '.workflow_runs[] | select(.name == $wf)
+                                | select((.id|tostring) != $self) | .id')
+
+          for id in $encours; do
+            if [ "$id" -lt "$GITHUB_RUN_ID" ]; then
+              echo "Passage $id deja en cours et plus ancien : on lui laisse la main."
+              echo "skip=true" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+          done
+          echo "Aucun passage plus ancien en cours : on continue."
+          echo "skip=false" >> "$GITHUB_OUTPUT"
+
       - uses: actions/checkout@v4
+        if: steps.garde.outputs.skip != 'true'
 
       - uses: actions/setup-python@v5
+        if: steps.garde.outputs.skip != 'true'
         with:
           python-version: "3.12"
           cache: pip
 
       - run: pip install -r requirements.txt
+        if: steps.garde.outputs.skip != 'true'
 
       - name: Passage du watcher
+        if: steps.garde.outputs.skip != 'true'
         env:
           # En Secret (masque dans les logs) de preference ; en Variable si
           # tu te fiches que le handle apparaisse en clair.
@@ -88,6 +125,7 @@ jobs:
           fi
 
       - name: Memoriser les tweets traites
+        if: steps.garde.outputs.skip != 'true'
         run: |
           # Battement quotidien : GitHub desactive TOUS les workflows
           # planifies d'un repo apres 60 jours sans activite. Un workflow
@@ -99,15 +137,35 @@ jobs:
             echo "$AUJOURDHUI" > battement.txt
           fi
 
-          if [ -n "$(git status --porcelain state.json battement.txt)" ]; then
-            git config user.name  "astro-alerts"
-            git config user.email "actions@github.com"
-            git add state.json battement.txt
-            git commit -m "etat du watcher [skip ci]"
-            # Un autre passage a pu committer entre-temps : on rebase
-            # plutot que d'echouer le job.
-            git pull --rebase --autostash origin "${GITHUB_REF_NAME}"
-            git push
-          else
+          if [ -z "$(git status --porcelain state.json battement.txt)" ]; then
             echo "Rien a memoriser."
+            exit 0
           fi
+
+          git config user.name  "astro-alerts"
+          git config user.email "actions@github.com"
+
+          # Le rebase seul ne suffisait pas : deux state.json divergents ne
+          # se reconcilient pas tout seuls, le passage echouait et son
+          # ecriture etait perdue — donc re-alerte au passage suivant. On
+          # fusionne explicitement avec la version distante avant de
+          # repousser, et on reessaie si quelqu'un nous grille au poteau.
+          for essai in 1 2 3; do
+            git add state.json battement.txt
+            git commit -m "etat du watcher [skip ci]" || true
+
+            if git push; then
+              echo "Memoire ecrite (essai $essai)."
+              exit 0
+            fi
+
+            echo "Pousse refusee : un autre passage a ecrit entre-temps, fusion."
+            git fetch origin "${GITHUB_REF_NAME}"
+            git show "origin/${GITHUB_REF_NAME}:state.json" > distant.json 2>/dev/null \
+              || echo '{}' > distant.json
+            git reset --soft "origin/${GITHUB_REF_NAME}"
+            python fusion_etat.py state.json distant.json
+            rm -f distant.json
+          done
+
+          echo "::warning::Memoire non ecrite apres 3 essais."

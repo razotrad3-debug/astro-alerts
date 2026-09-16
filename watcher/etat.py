@@ -138,3 +138,46 @@ def marquer(etat: dict, handle: str, ids, messages=()) -> None:
 
 def est_premier_run(etat: dict, handle: str) -> bool:
     return handle not in etat
+
+
+def fusionner(local: dict, distant: dict) -> dict:
+    """Reunit deux versions de la memoire sans rien perdre.
+
+    Quand deux passages ecrivent en meme temps, git se retrouve avec deux
+    state.json divergents et ne sait pas les reconcilier : le rebase echoue
+    et l'un des deux passages perd son ecriture — donc re-alerte au passage
+    suivant. On prend ici l'union des identifiants et des empreintes, et la
+    plus grande valeur des horodatages et compteurs, qui ne font que croitre.
+    """
+    sortie = dict(distant or {})
+
+    for cle_, bloc in (local or {}).items():
+        if cle_.startswith("_") or not isinstance(bloc, dict):
+            continue
+        ref = dict(sortie.get(cle_) or {})
+        for champ in ("ids", "empreintes"):
+            reunion = list(ref.get(champ, []))
+            for v in bloc.get(champ, []):
+                if v not in reunion:
+                    reunion.append(v)
+            ref[champ] = reunion[-_MAX_IDS:]
+        sortie[cle_] = ref
+
+    for champ in ("_horodatages", "_compteurs"):
+        reunion = dict((distant or {}).get(champ) or {})
+        for nom, v in ((local or {}).get(champ) or {}).items():
+            autre = reunion.get(nom, 0)
+            try:
+                gagnant = max(float(v), float(autre))
+                # Les compteurs de tweets sont des entiers : les rendre en
+                # flottant ferait diverger leur ecriture dans state.json a
+                # chaque fusion, pour rien.
+                if isinstance(v, int) and isinstance(autre, (int, float)):
+                    gagnant = int(gagnant)
+                reunion[nom] = gagnant
+            except Exception:
+                reunion.setdefault(nom, v)
+        if reunion:
+            sortie[champ] = reunion
+
+    return sortie
