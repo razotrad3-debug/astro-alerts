@@ -146,13 +146,15 @@ def passage() -> None:
               + source.derniere_source())
 
         premier = memoire.est_premier_run(etat, marque)
-        vus = memoire.deja_vus(etat, marque)
-        nouveaux = [t for t in tweets if t["id"] not in vus]
+        # deja_traite verifie l'identifiant ET l'empreinte de contenu :
+        # le meme post relaye par Telegram sans lien /status/ porte un
+        # "tg-<num>" different du numero de tweet, et partait deux fois.
+        nouveaux = [t for t in tweets if not memoire.deja_traite(etat, marque, t)]
 
         if premier and config.SILENCE_PREMIER_RUN:
             # Premier demarrage : on enregistre l'existant sans alerter,
             # sinon on recoit d'un coup tout l'historique disponible.
-            memoire.marquer(etat, marque, [t["id"] for t in tweets])
+            memoire.marquer(etat, marque, [t["id"] for t in tweets], tweets)
             print("   premier run : " + str(len(tweets))
                   + " tweet(s) marques comme vus, aucune alerte envoyee")
             continue
@@ -167,8 +169,8 @@ def passage() -> None:
                 rattrape = source.complement_apify(handle)
                 if rattrape:
                     etat = memoire.charger()      # complement_apify a ecrit
-                    vus = memoire.deja_vus(etat, marque)
-                    nouveaux = [t for t in rattrape if t["id"] not in vus]
+                    nouveaux = [t for t in rattrape
+                                if not memoire.deja_traite(etat, marque, t)]
                     print("   Apify rapporte " + str(len(nouveaux))
                           + " post(s) que les sources gratuites n'avaient pas")
                     # Le rattrapage a abouti : on peut enfin avancer le
@@ -194,7 +196,7 @@ def passage() -> None:
         if anciens:
             print("   " + str(len(anciens)) + " post(s) de plus de "
                   + str(config.AGE_MAX_HEURES) + "h ignore(s) et marque(s) vus")
-            memoire.marquer(etat, marque, [t["id"] for t in anciens])
+            memoire.marquer(etat, marque, [t["id"] for t in anciens], anciens)
         nouveaux = recents
         if not nouveaux:
             memoire.sauver(etat)
@@ -212,7 +214,7 @@ def passage() -> None:
                 traceback.print_exc()
             # Marque meme en cas d'echec : un tweet illisible ne doit pas
             # bloquer la file a chaque passage du cron.
-            memoire.marquer(etat, marque, [t["id"]])
+            memoire.marquer(etat, marque, [t["id"]], [t])
 
     memoire.sauver(etat)
 

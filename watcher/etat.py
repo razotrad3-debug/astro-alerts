@@ -5,12 +5,48 @@ Sans ca, chaque passage du cron re-alerterait sur les memes tweets. Le
 fichier est volontairement minuscule et lisible a la main : sur GitHub
 Actions il est commite dans le repo apres chaque run.
 """
+import hashlib
 import json
 import os
+import re
 
 import config
 
 _MAX_IDS = 200  # on ne garde qu'une fenetre recente, le fichier reste petit
+
+_RE_MEDIA = re.compile(r"/media/([A-Za-z0-9_\-]+)")
+_RE_LIEN = re.compile(r"https?://\S+")
+_RE_BRUIT = re.compile(r"[^a-z0-9]+")
+
+
+def empreinte(msg: dict) -> str:
+    """Signature de CONTENU d'un post, stable d'une source a l'autre.
+
+    L'identifiant ne suffit pas. Quand la chaine Telegram relaie un tweet
+    sans lien /status/, x_telegram lui attribue "tg-<num>", qui ne pourra
+    jamais correspondre au numero de tweet vu sur X. Le meme post partait
+    donc DEUX FOIS en alerte, a quelques minutes d'ecart — l'ecart etant
+    celui du relai Telegram, d'ou deux horodatages differents pour un seul
+    et meme post.
+
+    L'identifiant media de twimg, lui, est le meme quelle que soit la
+    source. Verifie sur les 32 posts a graphique du compte : 32 media
+    distincts, aucun reutilise d'un tweet a l'autre. C'est donc une cle
+    sure ici — deux messages qui la partagent sont le meme post.
+
+    Sans image, on retombe sur un prefixe de texte normalise. Un PREFIXE,
+    parce que l'apercu Telegram coupe vers 190 caracteres : comparer les
+    textes entiers ferait diverger la version courte de la version longue.
+    """
+    for u in (msg.get("images") or []):
+        m = _RE_MEDIA.search(str(u))
+        if m:
+            return "img:" + m.group(1)
+
+    texte = _RE_BRUIT.sub("", _RE_LIEN.sub(" ", (msg.get("texte") or "").lower()))
+    if len(texte) < 20:
+        return ""      # trop court pour distinguer deux posts sans risque
+    return "txt:" + hashlib.sha1(texte[:120].encode()).hexdigest()[:16]
 
 
 def charger() -> dict:
@@ -70,13 +106,34 @@ def deja_vus(etat: dict, handle: str) -> list:
     return list(etat.get(handle, {}).get("ids", []))
 
 
-def marquer(etat: dict, handle: str, ids) -> None:
+def empreintes_vues(etat: dict, handle: str) -> set:
+    """Signatures de contenu deja traitees, pour ce handle."""
+    return set(etat.get(handle, {}).get("empreintes", []))
+
+
+def deja_traite(etat: dict, handle: str, msg: dict) -> bool:
+    """Ce post est-il deja passe, sous n'importe quel identifiant ?"""
+    if msg.get("id") in set(deja_vus(etat, handle)):
+        return True
+    e = empreinte(msg)
+    return bool(e) and e in empreintes_vues(etat, handle)
+
+
+def marquer(etat: dict, handle: str, ids, messages=()) -> None:
+    """Note des identifiants vus, et les empreintes des messages fournis."""
     bloc = etat.setdefault(handle, {})
     connus = list(bloc.get("ids", []))
     for i in ids:
         if i not in connus:
             connus.append(i)
     bloc["ids"] = connus[-_MAX_IDS:]
+
+    empreintes = list(bloc.get("empreintes", []))
+    for m in messages or ():
+        e = empreinte(m) if isinstance(m, dict) else str(m or "")
+        if e and e not in empreintes:
+            empreintes.append(e)
+    bloc["empreintes"] = empreintes[-_MAX_IDS:]
 
 
 def est_premier_run(etat: dict, handle: str) -> bool:

@@ -2,7 +2,7 @@
 import time
 
 import config
-from . import x_api, x_apify, x_syndication, x_telegram
+from . import etat, x_api, x_apify, x_syndication, x_telegram
 
 
 class ErreurSource(Exception):
@@ -25,11 +25,21 @@ def _fusionner(*listes):
     post, on garde la version X (texte complet, image d'origine) et on
     ignore l'apercu Telegram, plus pauvre.
     """
-    vus = {}
+    vus, signatures = {}, set()
     for liste in listes:
         for msg in liste or []:
-            if msg["id"] not in vus:
-                vus[msg["id"]] = msg
+            if msg["id"] in vus:
+                continue
+            # Deuxieme cle : le contenu. L'identifiant ne suffit pas quand
+            # Telegram relaie un tweet sans lien /status/ — il recoit alors
+            # un "tg-<num>" qui ne correspondra jamais au numero de tweet
+            # vu sur X, et le meme post passait deux fois.
+            sig = etat.empreinte(msg)
+            if sig and sig in signatures:
+                continue
+            if sig:
+                signatures.add(sig)
+            vus[msg["id"]] = msg
 
     def _cle(m):
         try:
