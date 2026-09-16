@@ -245,3 +245,9 @@ def construire(tweet: dict, analyse: dict) -> str:
     lignes.append('<a href="' + lien + '">X</a>'
                   + ("  ·  <i>" + quand + "</i>" if quand else ""))
     return "\n".join(lignes)
+
+
+def instant(brut):
+    """Date du post en secondes epoch, ou None si illisible."""
+    d = _horodatage(brut) if brut else None
+    return d.timestamp() if d is not None else None

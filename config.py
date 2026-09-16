@@ -144,6 +144,18 @@ ANALYSER_SANS_IMAGE = _bool("ANALYSER_SANS_IMAGE", True)
 # l'heure d'ete doit suivre toute seule.
 FUSEAU = os.getenv("FUSEAU", "Europe/Paris").strip() or "Europe/Paris"
 
+# ── Republications ────────────────────────────────────────
+# Le compte supprime et republie son post dans les minutes qui suivent,
+# souvent pour corriger un chiffre ou ajouter un TP. Deux tweets, deux
+# images re-televersees : rien ne les relie techniquement, sauf le trade
+# qu'ils decrivent. Quand la meme paire, le meme sens et le meme prix
+# d'entree reviennent dans cette fenetre, on MODIFIE l'alerte deja publiee
+# au lieu d'en envoyer une seconde.
+# Mesure du 16/09/2026 : 4 minutes entre la suppression et la republication.
+ANTI_REPOST_MIN = _float("ANTI_REPOST_MIN", 15.0)
+# Ecart de prix tolere entre les deux annonces (76 332,34 vs 76 332).
+ANTI_REPOST_TOLERANCE_PCT = _float("ANTI_REPOST_TOLERANCE_PCT", 0.1)
+
 # ── Le stop ───────────────────────────────────────────────
 # Il est affiche en priorite tel qu'il est lu (texte ou boite TradingView).
 # Quand il n'est pas lisible, on le DEDUIT de l'entree, et l'alerte le

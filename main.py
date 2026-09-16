@@ -13,6 +13,8 @@ import sys
 import time
 import traceback
 
+import requests
+
 # La console Windows est en cp1252 par defaut : afficher un message contenant
 # des emoji y leve UnicodeEncodeError et tue le run. On force l'UTF-8.
 try:
@@ -86,8 +88,45 @@ def _merite_analyse(tweet: dict) -> bool:
     return any(m in bas for m in _MOTS_TRADE)
 
 
-def _traiter_tweet(tweet: dict) -> bool:
-    """Analyse un tweet et envoie l'alerte si elle a lieu d'etre."""
+def _republication(fiche: dict) -> bool:
+    """Le post deja annonce a-t-il disparu ? Alors c'est une republication.
+
+    Confirmation, pas supposition. Le meme trade peut legitimement etre
+    annonce deux fois — il renforce parfois une position au meme prix. Ce
+    qui distingue une republication, c'est que le premier tweet n'existe
+    plus : il l'a supprime avant de reposter. Verifie le 16/09/2026, le
+    post de 22h09 renvoie 404 sur fxtwitter, celui de 22h13 repond 200.
+
+    Miroir injoignable : on tranche pour la republication. La fenetre de
+    15 minutes ET l'egalite du prix d'entree rendent deux annonces
+    reellement distinctes tres improbables, et une alerte modifiee se
+    rattrape a l'oeil — une alerte en double, non.
+    """
+    tid = str(fiche.get("tweet_id") or "")
+    if not tid.isdigit():
+        return True
+    try:
+        r = requests.get("https://api.fxtwitter.com/i/status/" + tid,
+                         headers={"User-Agent": "Mozilla/5.0"}, timeout=10)
+        if r.status_code == 404:
+            print("   le post precedent a ete supprime")
+            return True
+        if r.status_code == 200:
+            print("   le post precedent existe toujours : deux annonces distinctes")
+            return False
+    except Exception as e:
+        print("   verification du post precedent impossible : " + str(e))
+    return True
+
+
+def _traiter_tweet(tweet: dict, etat=None, marque="") -> bool:
+    """Analyse un tweet et envoie l'alerte si elle a lieu d'etre.
+
+    `etat` et `marque` servent a reconnaitre une REPUBLICATION : le compte
+    supprime et republie regulierement son post quelques minutes plus tard,
+    corrige ou enrichi. Deux tweets, deux images, mais un seul trade — on
+    modifie alors l'alerte deja publiee au lieu d'en envoyer une seconde.
+    """
     if not tweet.get("images") and not config.ANALYSER_SANS_IMAGE:
         print("   (pas d'image, ignore)")
         return False
@@ -114,12 +153,35 @@ def _traiter_tweet(tweet: dict) -> bool:
 
     texte = message.construire(tweet, analyse)
     images = tweet.get("images") or []
+    quand = message.instant(tweet.get("date"))
+
+    fiche = None
+    if etat is not None:
+        fiche = memoire.trade_deja_annonce(
+            etat, marque, analyse, quand,
+            config.ANTI_REPOST_MIN, config.ANTI_REPOST_TOLERANCE_PCT)
+
+    if fiche is not None and _republication(fiche):
+        print("   republication du meme trade (" + str(fiche.get("ticker"))
+              + " " + str(fiche.get("sens")) + " a " + str(fiche.get("entree"))
+              + ") : on modifie l'alerte deja publiee")
+        if telegram.modifier(fiche.get("message_id", 0), texte,
+                             images[0] if images else ""):
+            memoire.maj_trade(etat, marque, fiche, analyse, quand, tweet.get("id"))
+            return True
+        # Modification impossible (message trop ancien, supprime...) :
+        # mieux vaut une alerte en double qu'une alerte perdue.
+        print("   modification refusee, on envoie une nouvelle alerte")
+
     if images:
         ok = telegram.envoyer_photo(images[0], texte)
     else:
         ok = telegram.envoyer(texte)
     print("   alerte envoyee" if ok else "   ECHEC envoi Telegram")
-    return ok
+
+    if ok and etat is not None:
+        memoire.noter_trade(etat, marque, analyse, quand, ok, tweet.get("id"))
+    return bool(ok)
 
 
 def passage() -> None:
@@ -209,7 +271,7 @@ def passage() -> None:
                 time.sleep(6)
             print("   nouveau tweet " + t["id"] + " (" + str(len(t["images"])) + " image(s))")
             try:
-                _traiter_tweet(t)
+                _traiter_tweet(t, etat, marque)
             except Exception:
                 traceback.print_exc()
             # Marque meme en cas d'echec : un tweet illisible ne doit pas

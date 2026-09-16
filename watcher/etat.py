@@ -161,6 +161,20 @@ def fusionner(local: dict, distant: dict) -> dict:
                 if v not in reunion:
                     reunion.append(v)
             ref[champ] = reunion[-_MAX_IDS:]
+
+        # Les trades sont des fiches, pas des chaines : on les reunit par
+        # tweet d'origine. Sans ca une fusion effacerait le message_id de
+        # l'alerte publiee, et la republication repartirait en double.
+        fiches = list(ref.get("trades", []))
+        connus = {str(f.get("tweet_id")) for f in fiches if isinstance(f, dict)}
+        for f in bloc.get("trades", []):
+            if isinstance(f, dict) and str(f.get("tweet_id")) not in connus:
+                connus.add(str(f.get("tweet_id")))
+                fiches.append(f)
+        if fiches:
+            fiches.sort(key=lambda f: f.get("instant") or 0)
+            ref["trades"] = fiches[-_MAX_TRADES:]
+
         sortie[cle_] = ref
 
     for champ in ("_horodatages", "_compteurs"):
@@ -181,3 +195,83 @@ def fusionner(local: dict, distant: dict) -> dict:
             sortie[champ] = reunion
 
     return sortie
+
+
+_MAX_TRADES = 40
+
+
+def signature_trade(analyse: dict):
+    """Ce qui identifie le TRADE annonce, independamment du tweet.
+
+    Le compte supprime et republie : deux identifiants de tweet, deux
+    images re-televersees, donc deux empreintes de contenu differentes —
+    mais un seul et meme trade. Constate le 16/09/2026, un short a 76 332
+    annonce a 22h09 puis republie a 22h13 avec le TP en plus.
+
+    On ne signe que ce qui est verifiable et stable : la paire, le sens, le
+    statut et le prix d'entree. Sans prix d'entree, pas de signature : trop
+    de risque d'etouffer deux annonces reellement distinctes.
+    """
+    sens = (analyse.get("sens") or "").lower()
+    statut = (analyse.get("statut") or "").lower()
+    if sens not in ("short", "long") or statut not in ("ouverture", "intention"):
+        return None
+    try:
+        entree = float(analyse.get("entree"))
+    except (TypeError, ValueError):
+        return None
+    if entree <= 0:
+        return None
+    return {"ticker": (analyse.get("ticker") or "").upper(),
+            "sens": sens, "statut": statut, "entree": entree}
+
+
+def trade_deja_annonce(etat: dict, handle: str, analyse: dict, instant,
+                       fenetre_min: float, tolerance_pct: float):
+    """Le meme trade a-t-il deja ete annonce dans la fenetre ? Renvoie sa fiche.
+
+    La fenetre se mesure sur la date des POSTS, pas sur l'heure de reception :
+    une alerte peut arriver avec du retard, ce qui n'a rien a voir avec
+    l'intervalle qui separe reellement les deux publications.
+    """
+    sig = signature_trade(analyse)
+    if sig is None or instant is None:
+        return None
+
+    for fiche in reversed(etat.get(handle, {}).get("trades", [])):
+        if (fiche.get("ticker") != sig["ticker"]
+                or fiche.get("sens") != sig["sens"]
+                or fiche.get("statut") != sig["statut"]):
+            continue
+        try:
+            ecart_prix = abs(float(fiche["entree"]) - sig["entree"]) / sig["entree"] * 100
+            ecart_temps = abs(float(fiche["instant"]) - instant) / 60.0
+        except (TypeError, ValueError, KeyError, ZeroDivisionError):
+            continue
+        if ecart_prix <= tolerance_pct and ecart_temps <= fenetre_min:
+            return fiche
+    return None
+
+
+def noter_trade(etat: dict, handle: str, analyse: dict, instant,
+                message_id: int = 0, tweet_id: str = "") -> None:
+    """Retient le trade annonce et le message Telegram qui le porte."""
+    sig = signature_trade(analyse)
+    if sig is None or instant is None:
+        return
+    sig.update(instant=float(instant), message_id=int(message_id or 0),
+               tweet_id=str(tweet_id or ""))
+    bloc = etat.setdefault(handle, {})
+    bloc["trades"] = (list(bloc.get("trades", [])) + [sig])[-_MAX_TRADES:]
+
+
+def maj_trade(etat: dict, handle: str, fiche: dict, analyse: dict,
+              instant, tweet_id: str = "") -> None:
+    """Met a jour une fiche existante apres une republication."""
+    sig = signature_trade(analyse)
+    if sig is not None:
+        fiche.update(sig)
+    if instant is not None:
+        fiche["instant"] = float(instant)
+    if tweet_id:
+        fiche["tweet_id"] = str(tweet_id)
