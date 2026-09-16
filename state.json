@@ -138,18 +138,20 @@
       "2099993011442868237",
       "2100015025461334424",
       "2100043913289675165",
-      "2100106178881847636"
+      "2100106178881847636",
+      "2100189557375529100"
     ],
     "empreintes": [
       "img:HSTabwkb0AA_jhF",
-      "img:HSUTcA6a8AA8I5I"
+      "img:HSUTcA6a8AA8I5I",
+      "img:HSVesy9aUAANGYI"
     ]
   },
   "_horodatages": {
-    "apify": 1789539361.9552236,
-    "x_429": 1789539355.6043756
+    "apify": 1789559202.7761312,
+    "x_429": 1789559191.319938
   },
   "_compteurs": {
-    "astronomer_zero@fxtwitter": 20399
+    "astronomer_zero@fxtwitter": 20400
   }
 }
