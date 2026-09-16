@@ -27,7 +27,7 @@ créer, l'une et l'autre sans carte bancaire :
 | Variable | Où | Gratuité |
 |---|---|---|
 | `APIFY_TOKEN` | [console.apify.com → Integrations](https://console.apify.com/settings/integrations) | 5 $ de crédits offerts **chaque mois** |
-| `GEMINI_API_KEY` | [aistudio.google.com/apikey](https://aistudio.google.com/apikey) | 250 requêtes/jour sur `gemini-2.5-flash` |
+| `GEMINI_API_KEY` | [aistudio.google.com/apikey](https://aistudio.google.com/apikey) | **20 requêtes/jour et par modèle** — d'où la chaîne de 4 modèles, voir plus bas |
 
 Telegram est déjà configuré (`@astro_short_watcher_bot`). Si tu repars de zéro,
 voir plus bas.
@@ -218,6 +218,46 @@ Pour suivre un autre compte, change `X_HANDLES` — le bot marchera, mais ces
 réglages fins de prompt sont taillés pour lui. Les exemples concrets sont
 dans `_SYSTEME`, en haut de [`watcher/vision.py`](watcher/vision.py).
 
+### Où il place ses stops — et d'où sort le 0,9 %
+
+Mesuré à la main sur ses graphiques, en relevant les étiquettes de prix que
+TradingView pose sur l'axe pour chaque bord de l'outil de position. Onze
+entrées datées entre le 23/07 et le 14/09/2026 :
+
+| Date | Trade | Entrée | Stop | Distance |
+|---|---|---|---|---|
+| 02/08 | Short VI | 63 447,6 | 63 542,0 | 0,15 % |
+| 02/09 | Long I (scalp) | 76 973,4 | 76 643,7 | 0,43 % |
+| 27/07 | Short IV | 65 484,5 | 65 780,5 | 0,45 % |
+| 30/07 | Long V | 63 447,6 | 63 103,6 | 0,54 % |
+| 14/09 | Another short | 79 475,4 | 79 922,1 | 0,56 % |
+| 11/09 | Short II | 79 475,4 | 80 053,6 | 0,73 % |
+| 23/07 | Shorts III | 66 292,3 | 66 831,4 | 0,81 % |
+| 12/08 | Short I compound | 65 254,5 | 65 790,1 | 0,82 % |
+| 04/09 | Short II | 81 225,2 | 82 184,7 | 1,18 % |
+| 28/08 | Short I (native) | 80 498,9 | 82 216,9 | 2,13 % |
+| 21/08 | Long **positionnel** | 69 151,6 | 65 159,8 | **5,77 %** |
+
+Sur les dix trades intraday et swing : **moyenne 0,78 %, médiane 0,65 %**,
+soit environ 490 points sur du BTC à 80 k. Le onzième, un long journalier
+tenu plusieurs semaines, n'appartient pas à la même famille — le mélanger
+fait monter la moyenne à 1,24 % et ne veut plus rien dire.
+
+**Le pourcentage n'est jamais sa décision.** Il pose son stop juste au-delà
+d'un niveau qu'il a nommé — VAH, Weekly Open, weekly inst level, POC — et le
+pourcentage tombe tout seul : 0,45 % quand la zone est étroite, 2,13 % quand
+elle est large. C'est pour ça que le bot affiche toujours le stop **lu**
+quand il est lisible, et ne calcule qu'à défaut.
+
+Le repli est réglé à **0,9 %** (`STOP_ESTIME_PCT`) : c'est le point
+d'inflexion de cette série — il couvre 8 des 10 trades, là où monter à
+1,2 % en couvre un de plus pour un tiers de risque en plus.
+
+**Vérification de la méthode de lecture.** Sur le short du 04/09, l'outil
+donne entrée 81 225,16, stop 82 184,72, cible 79 295,40 — soit 2,01 RR. Dans
+son texte du 05/09 il écrit *« 25 % locked in at 2.02 RR »*. Les chiffres
+relevés au pixel retombent sur les siens.
+
 ---
 
 ## Ce que le bot fait et ne fait pas
@@ -226,15 +266,30 @@ dans `_SYSTEME`, en haut de [`watcher/vision.py`](watcher/vision.py).
 take-profits, levier, taille, exchange, timeframe, PnL affiché, et un statut
 (ouverture / en cours / clôturé / simple analyse).
 
-**Il ne devine pas.** La consigne donnée à Claude est explicite : si un prix
+**Il ne devine pas.** La consigne donnée au modèle est explicite : si un prix
 n'est pas lisible dans l'image ni écrit dans le texte, le champ est `null` et
-le message affiche « non lisible ». Chaque alerte porte un niveau de
-**confiance de lecture** (haute / moyenne / basse), et dès que ce n'est pas
-« haute », le message montre ce qui a réellement été lu — citation du tweet ou
-élément du chart — pour que tu puisses trancher toi-même en ouvrant le tweet.
+**la ligne disparaît du message**. Pas de « non lisible », pas de `TP :` suivi
+de rien — une ligne vide se lit comme une information, c'est pire que pas de
+ligne. Un chiffre lu sur l'image seule, absent du texte, est marqué `(chart)` :
+sur ce compte les boîtes de position décrivent souvent le trade précédent.
+
+La confiance de lecture et la citation justificative sont extraites et
+disponibles dans l'analyse, mais **plus affichées** : l'alerte a été réduite à
+ce qui est actionnable d'un coup d'œil sur un téléphone, le lien `X` est là
+pour le contexte.
 
 C'est volontaire : un prix d'entrée halluciné serait pire que pas de prix,
 parce que tu agirais dessus.
+
+**Une seule exception, assumée : le stop.** Quand il n'est pas lisible, il
+est déduit de l'entrée à 0,9 % (voir plus haut). L'alerte le marque alors
+`~80 200 (est. 0,9 %)` — tilde et mention, jamais confondu avec un stop
+annoncé, qui s'affiche lui sans tilde. Deux garde-fous avant affichage : un
+stop du mauvais côté de l'entrée, ou à plus de 8 % d'elle, est écarté et
+remplacé par l'estimation — c'est presque toujours une vieille boîte de
+position restée sur le graphique. L'estimation ne se déclenche que sur les
+statuts `ouverture` et `intention` : calculer un stop sous un post de suivi
+laisserait croire qu'il y a encore une position à protéger.
 
 **Il ne trade pas.** Ce bot lit et transmet, rien d'autre.
 
