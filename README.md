@@ -83,6 +83,37 @@ du bot) après chaque passage.
 3. Onglet **Actions** → `x-short-watcher` → **Run workflow** pour le premier
    passage (celui-ci n'alertera pas, il initialise la mémoire).
 
+### Le piège du `checkout` sur GitHub Actions
+
+Constaté le 16/09/2026 : **la même alerte envoyée deux fois**, à 04h08 et
+04h10, sur un seul et même post.
+
+`actions/checkout` récupère par défaut `github.sha` — la tête de la branche
+**au moment où l'événement a été créé**, pas au moment où le job démarre.
+Comme les passages s'enchaînent toutes les 2 minutes et commitent leur
+mémoire, un déclencheur parti à 02:08:17 portait le SHA d'avant le commit
+d'état de 02:08:41. Le passage lisait donc un `state.json` sans le tweet,
+le prenait pour nouveau, et alertait une seconde fois.
+
+Deux parades, cumulées :
+
+```yaml
+- uses: actions/checkout@v4
+  with:
+    ref: ${{ github.event.repository.default_branch || 'main' }}
+```
+
+et, avant toute lecture, un rafraîchissement explicite de la mémoire depuis
+la branche publiée (`git fetch` + `git show FETCH_HEAD:state.json`).
+
+**Ce n'était pas un problème de concurrence.** Mesuré au niveau des *jobs* :
+zéro recouvrement sur 20 transitions, les passages s'enchaînent à 2-4 s
+d'intervalle — le bloc `concurrency` fait son travail. Les horodatages
+`run_started_at` / `updated_at` de l'API donnent l'illusion de
+chevauchements ; ce sont la création du run et sa dernière modification, pas
+son exécution. Pour mesurer un vrai recouvrement, il faut les `started_at` /
+`completed_at` **du job**.
+
 ### Trois limites à connaître
 
 - **Latence : compte 15 à 30 min.** Le cron est réglé sur 15 min et GitHub
