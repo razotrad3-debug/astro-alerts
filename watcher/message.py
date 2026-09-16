@@ -6,6 +6,7 @@ actionnables (entree, stop, TP). Tout le reste — resume, PnL, statut
 detaille, extrait du post — a ete retire : l'alerte doit se lire d'un coup
 d'oeil sur un telephone, et le lien permet d'aller voir le contexte.
 """
+import config
 
 _EMOJI_SENS = {"short": "\U0001F534", "long": "\U0001F7E2"}
 
@@ -88,29 +89,86 @@ _MOIS = {m: i + 1 for i, m in enumerate(
     "Jan Feb Mar Apr May Jun Jul Aug Sep Oct Nov Dec".split())}
 
 
-def _date(brut) -> str:
-    """Date du post en JJ/MM/AAAA a HHhMM, ou chaine vide si illisible."""
-    if not brut:
-        return ""
-    from datetime import datetime
+def _decalage(brut: str):
+    """Fuseau d'une date Twitter ("+0000"), ou UTC si illisible."""
+    from datetime import timedelta, timezone
+    try:
+        signe = -1 if brut[0] == "-" else 1
+        return timezone(signe * timedelta(hours=int(brut[1:3]),
+                                          minutes=int(brut[3:5])))
+    except Exception:
+        return timezone.utc
+
+
+def _horodatage(brut):
+    """Datetime AVEC fuseau, depuis l'un ou l'autre format de source, ou None.
+
+    Les deux sources datent en UTC : Telegram rend de l'ISO avec un +00:00,
+    X et Apify le format historique ("Sat Sep 12 21:06:13 +0000 2026"). On
+    conserve ce fuseau au lieu de le perdre, sinon la conversion en heure
+    locale plus bas n'aurait rien sur quoi s'appuyer.
+    """
+    from datetime import datetime, timezone
     texte = str(brut).strip()
 
     try:
-        return datetime.fromisoformat(
-            texte.replace("Z", "+00:00")).strftime("%d/%m/%Y a %Hh%M")
+        d = datetime.fromisoformat(texte.replace("Z", "+00:00"))
+        return d if d.tzinfo else d.replace(tzinfo=timezone.utc)
     except Exception:
         pass
 
     morceaux = texte.split()
     if len(morceaux) >= 6 and morceaux[1] in _MOIS:
         try:
-            heure = morceaux[3].split(":")
-            return "{:02d}/{:02d}/{} a {}h{}".format(
-                int(morceaux[2]), _MOIS[morceaux[1]], morceaux[5],
-                heure[0], heure[1])
+            h, m, s = (int(x) for x in morceaux[3].split(":"))
+            return datetime(int(morceaux[5]), _MOIS[morceaux[1]],
+                            int(morceaux[2]), h, m, s,
+                            tzinfo=_decalage(morceaux[4]))
         except Exception:
             pass
-    return ""
+    return None
+
+
+_ZONE = None
+
+
+def _zone():
+    """Fuseau d'affichage, resolu une fois pour toutes.
+
+    zoneinfo a besoin d'une base de fuseaux : presente sur les runners
+    Linux, absente de Windows — d'ou le paquet tzdata dans requirements.
+    Si malgre tout elle manque, on retombe sur le fuseau de la machine
+    plutot que sur UTC : c'est faux la moitie de l'annee, mais moins
+    souvent que d'afficher l'heure de Greenwich a quelqu'un a Paris.
+    """
+    global _ZONE
+    if _ZONE is None:
+        try:
+            from zoneinfo import ZoneInfo
+            _ZONE = ZoneInfo(config.FUSEAU)
+        except Exception as e:
+            print("[message] fuseau " + str(config.FUSEAU) + " indisponible ("
+                  + str(e) + "), repli sur l'heure locale de la machine.")
+            _ZONE = False
+    return _ZONE or None
+
+
+def _date(brut) -> str:
+    """Date du post en heure LOCALE, JJ/MM/AAAA a HHhMM.
+
+    Les sources datent en UTC. Affichee telle quelle, une publication de
+    23h08 a Paris s'annoncait "21h08" — deux heures avant d'avoir eu lieu,
+    ce qui rendait l'horodatage inutilisable pour juger de la fraicheur.
+    """
+    if not brut:
+        return ""
+    d = _horodatage(brut)
+    if d is None:
+        return ""
+    try:
+        return d.astimezone(_zone()).strftime("%d/%m/%Y a %Hh%M")
+    except Exception:
+        return d.strftime("%d/%m/%Y a %Hh%M")
 
 
 def construire(tweet: dict, analyse: dict) -> str:

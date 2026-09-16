@@ -64,6 +64,10 @@ jobs:
           # la memoire : c'est le garde-fou contre le rejeu d'historique.
           AGE_MAX_HEURES: ${{ vars.AGE_MAX_HEURES || '6' }}
           ALERTER_SANS_TRADE: ${{ vars.ALERTER_SANS_TRADE || 'false' }}
+          # Le runner tourne en UTC : sans ca, l'heure affichee dans les
+          # alertes a deux heures de retard sur celle du telephone.
+          FUSEAU: ${{ vars.FUSEAU || 'Europe/Paris' }}
+          STOP_ESTIME_PCT: ${{ vars.STOP_ESTIME_PCT || '0.9' }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           # Mode payant : bascule via les Variables SOURCE_X / FOURNISSEUR_IA
           TWITTERAPI_IO_KEY: ${{ secrets.TWITTERAPI_IO_KEY }}

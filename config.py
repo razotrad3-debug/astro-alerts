@@ -137,6 +137,13 @@ ALERTER_SANS_TRADE = _bool("ALERTER_SANS_TRADE", False)
 # Mis a True, on analyse quand meme le texte seul.
 ANALYSER_SANS_IMAGE = _bool("ANALYSER_SANS_IMAGE", True)
 
+# ── Affichage ─────────────────────────────────────────────
+# Fuseau des dates dans les alertes. Les sources datent toutes en UTC ;
+# sans conversion, un post de 23h08 a Paris s'affichait "21h08".
+# Nom IANA ("Europe/Paris", "America/New_York"...), pas un decalage fixe :
+# l'heure d'ete doit suivre toute seule.
+FUSEAU = os.getenv("FUSEAU", "Europe/Paris").strip() or "Europe/Paris"
+
 # ── Le stop ───────────────────────────────────────────────
 # Il est affiche en priorite tel qu'il est lu (texte ou boite TradingView).
 # Quand il n'est pas lisible, on le DEDUIT de l'entree, et l'alerte le
