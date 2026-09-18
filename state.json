@@ -154,7 +154,8 @@
       "2100689585441480895",
       "2100813397738840574",
       "2100876733272776731",
-      "2100905412036108388"
+      "2100905412036108388",
+      "2101041293652820387"
     ],
     "empreintes": [
       "img:HSTabwkb0AA_jhF",
@@ -174,7 +175,8 @@
       "img:HScmCtda8AAVvrL",
       "img:HSeVXQ1awAAhjjP",
       "txt:360b0121ce5cc297",
-      "img:HSfpFUqa4AAFC0L"
+      "img:HSfpFUqa4AAFC0L",
+      "img:HShkrpfbwAAKqK9"
     ],
     "trades": [
       {
@@ -185,14 +187,23 @@
         "instant": 1789599616.0,
         "message_id": 153,
         "tweet_id": "2100359142322131323"
+      },
+      {
+        "ticker": "BTC",
+        "sens": "short",
+        "statut": "ouverture",
+        "entree": 81218.33,
+        "instant": 1789762254.0,
+        "message_id": 158,
+        "tweet_id": "2101041293652820387"
       }
     ]
   },
   "_horodatages": {
-    "apify": 1789732894.8347282,
-    "x_429": 1789732886.407261
+    "apify": 1789762284.206587,
+    "x_429": 1789762274.7207434
   },
   "_compteurs": {
-    "astronomer_zero@fxtwitter": 20429
+    "astronomer_zero@fxtwitter": 20430
   }
 }
