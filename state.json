@@ -167,7 +167,8 @@
       "2101504031130788123",
       "2101509064450777396",
       "2101511747802964014",
-      "2101603288802271312"
+      "2101603288802271312",
+      "2101606854812156399"
     ],
     "empreintes": [
       "img:HSTabwkb0AA_jhF",
@@ -200,7 +201,8 @@
       "img:HSoKxwPbsAAljPj",
       "img:HSoPUnqaUAAlERs",
       "txt:8e546adf371825eb",
-      "txt:19c7fcdaa27237a0"
+      "txt:19c7fcdaa27237a0",
+      "txt:b52dd90691a34c5d"
     ],
     "trades": [
       {
@@ -233,10 +235,10 @@
     ]
   },
   "_horodatages": {
-    "apify": 1789896338.786654,
-    "x_429": 1789896331.6372848
+    "apify": 1789897180.2124748,
+    "x_429": 1789897168.7609696
   },
   "_compteurs": {
-    "astronomer_zero@fxtwitter": 20464
+    "astronomer_zero@fxtwitter": 20465
   }
 }
