@@ -156,6 +156,14 @@ ANTI_REPOST_MIN = _float("ANTI_REPOST_MIN", 15.0)
 # Ecart de prix tolere entre les deux annonces (76 332,34 vs 76 332).
 ANTI_REPOST_TOLERANCE_PCT = _float("ANTI_REPOST_TOLERANCE_PCT", 0.1)
 
+# ── Echecs d'analyse ──────────────────────────────────────
+# Quand l'IA echoue sur un post (surcharge, reponse illisible), on ne l'envoie
+# pas en "Analyse impossible" : on le retente aux passages suivants. Au-dela
+# de ce nombre d'essais, on envoie quand meme une alerte degradee — avec la
+# photo, le debut du texte et le lien — pour ne jamais perdre le post.
+# 5 essais a 2 min d'intervalle : 10 minutes de patience au plus.
+ANALYSE_ESSAIS_MAX = _int("ANALYSE_ESSAIS_MAX", 5)
+
 # ── Le stop ───────────────────────────────────────────────
 # Il est affiche en priorite tel qu'il est lu (texte ou boite TradingView).
 # Quand il n'est pas lisible, on le DEDUIT de l'entree, et l'alerte le

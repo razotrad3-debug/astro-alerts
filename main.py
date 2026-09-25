@@ -137,6 +137,20 @@ def _traiter_tweet(tweet: dict, etat=None, marque="") -> bool:
 
     analyse = vision.analyser(tweet)
 
+    # Echec passager de l'IA : on ne te l'envoie pas tel quel. Le post reste
+    # non marque et sera retente au passage suivant, jusqu'a
+    # ANALYSE_ESSAIS_MAX fois. Ensuite seulement, alerte degradee.
+    if analyse.get("erreur") and analyse.get("_transitoire") and etat is not None:
+        essais = etat.setdefault(marque, {}).setdefault("essais", {})
+        n = int(essais.get(tweet["id"], 0)) + 1
+        essais[tweet["id"]] = n
+        if n < config.ANALYSE_ESSAIS_MAX:
+            print("   analyse ratee (" + str(analyse["erreur"])[:70] + "), essai "
+                  + str(n) + "/" + str(config.ANALYSE_ESSAIS_MAX)
+                  + " : on retentera au prochain passage")
+            return "reessayer"
+        print("   analyse ratee " + str(n) + " fois : alerte degradee")
+
     if analyse.get("erreur"):
         print("   erreur analyse : " + str(analyse["erreur"]))
     else:
@@ -271,12 +285,17 @@ def passage() -> None:
                 time.sleep(6)
             print("   nouveau tweet " + t["id"] + " (" + str(len(t["images"])) + " image(s))")
             try:
-                _traiter_tweet(t, etat, marque)
+                resultat = _traiter_tweet(t, etat, marque)
             except Exception:
                 traceback.print_exc()
-            # Marque meme en cas d'echec : un tweet illisible ne doit pas
-            # bloquer la file a chaque passage du cron.
+                resultat = None
+            if resultat == "reessayer":
+                # Non marque : il reviendra au prochain passage.
+                continue
+            # Marque meme en cas d'echec definitif : un tweet illisible ne
+            # doit pas bloquer la file a chaque passage du cron.
             memoire.marquer(etat, marque, [t["id"]], [t])
+            (etat.get(marque, {}).get("essais") or {}).pop(t["id"], None)
 
     memoire.sauver(etat)
 

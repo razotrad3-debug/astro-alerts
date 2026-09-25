@@ -175,8 +175,19 @@ def construire(tweet: dict, analyse: dict) -> str:
     lien = tweet.get("url", "")
 
     if analyse.get("erreur"):
-        return ("⚠️ Analyse impossible\n"
-                + '<a href="' + lien + '">voir le post</a>')
+        # N'arrive plus qu'apres ANALYSE_ESSAIS_MAX echecs de l'IA d'affilee.
+        # Le post reste lisible sans elle : la photo part avec ce message, et
+        # on y joint le debut de ce qu'il ecrit, sa date et le lien.
+        extrait = " ".join((tweet.get("texte") or "").split())
+        if len(extrait) > 280:
+            extrait = extrait[:280].rsplit(" ", 1)[0] + "…"
+        lignes = ["📝 <b>Nouveau post d'Astro</b> — <i>lecture auto indisponible</i>"]
+        if extrait:
+            lignes += ["", _echapper(extrait)]
+        quand = _date(tweet.get("date"))
+        lignes += ["", '<a href="' + lien + '">X</a>'
+                   + ("  ·  <i>" + quand + "</i>" if quand else "")]
+        return "\n".join(lignes)
 
     sens = (analyse.get("sens") or "").lower()
     ticker = analyse.get("ticker") or ""

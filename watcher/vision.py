@@ -511,16 +511,24 @@ def _gemini(images, invite) -> dict:
     if not config.GEMINI_API_KEY:
         return {"erreur": "GEMINI_API_KEY manquante (FOURNISSEUR_IA=gemini)."}
 
+    # N'importe quel echec fait passer au modele suivant, pas seulement le
+    # quota. Mesure le 25/09/2026 sur le post de 13h33 : le premier modele a
+    # renvoye une reponse illisible, le second un 503 "high demand" — et un
+    # nouvel essai quelques minutes plus tard a reussi du premier coup. Ces
+    # echecs sont passagers ; abandonner au premier coutait une alerte.
     derniere = None
     for modele in config.GEMINI_MODELES:
         res = _gemini_un(modele, images, invite)
-        if res.get("_quota_jour"):
-            print("[vision] " + modele + " : quota du jour epuise, modele suivant")
-            derniere = res
-            continue
-        return res
+        if not res.get("erreur"):
+            return res
+        print("[vision] " + modele + " : " + str(res["erreur"])[:90] + " -> modele suivant")
+        derniere = res
 
-    return derniere or {"erreur": "Aucun modele Gemini disponible."}
+    derniere = dict(derniere or {"erreur": "Aucun modele Gemini disponible."})
+    # Tous les modeles ont echoue d'un coup : presque toujours une surcharge
+    # passagere. main.py retentera au passage suivant plutot que d'alerter.
+    derniere["_transitoire"] = True
+    return derniere
 
 
 # ── Point d'entree ────────────────────────────────────────
