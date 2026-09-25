@@ -63,6 +63,23 @@ def charger() -> dict:
 
 
 def sauver(etat: dict) -> None:
+    # Reprise des ecritures laterales. Les sources posent des horodatages
+    # (quarantaine X, espacement Apify) et la veille ses compteurs, chacune
+    # directement sur disque, pendant que passage() tient une copie chargee
+    # AVANT elles. Sans cette reprise, la sauvegarde finale de passage()
+    # les ecrasait : la quarantaine X n'a jamais tenu — 4 appels refuses et
+    # 48 s perdus a chaque passage — et Apify etait rappele a chaque cycle.
+    # Ce sont des valeurs qui ne font que croitre : le maximum est le bon.
+    disque = charger()
+    for champ in ("_horodatages", "_compteurs"):
+        reunion = dict(disque.get(champ) or {})
+        for nom, v in (etat.get(champ) or {}).items():
+            try:
+                reunion[nom] = max(v, reunion[nom]) if nom in reunion else v
+            except TypeError:
+                reunion[nom] = v
+        if reunion:
+            etat[champ] = reunion
     try:
         with open(config.STATE_FILE, "w", encoding="utf-8") as f:
             json.dump(etat, f, ensure_ascii=False, indent=2)

@@ -2,7 +2,7 @@
 import time
 
 import config
-from . import etat, x_api, x_apify, x_syndication, x_telegram
+from . import etat, x_api, x_apify, x_fxtwitter, x_syndication, x_telegram
 
 
 class ErreurSource(Exception):
@@ -101,15 +101,26 @@ def derniers_tweets(handle: str, brut_aussi: bool = False):
         # On interroge les DEUX et on fusionne : X est plus complet mais
         # refuse par intermittence, Telegram est partiel mais toujours la.
         # Leur reunion est plus sure que l'un ou l'autre seul.
-        depuis_x = depuis_tg = depuis_apify = []
+        depuis_fx = depuis_x = depuis_tg = depuis_apify = []
         sources = []
 
-        # Gratuit et illimite, mais refuse souvent (429 selon l'IP).
+        # Source principale depuis le 25/09/2026 : timeline complete, gratuite,
+        # et elle repond la ou X renvoie 429. Voir x_fxtwitter.py.
         try:
-            depuis_x = x_syndication.derniers_tweets(handle)
-            sources.append("x(" + str(len(depuis_x)) + ")")
-        except x_syndication.ErreurSyndication as e:
-            print("[source] X indisponible : " + str(e)[:90])
+            depuis_fx = x_fxtwitter.derniers_tweets(handle)
+            sources.append("fxtwitter(" + str(len(depuis_fx)) + ")")
+        except x_fxtwitter.ErreurFxtwitter as e:
+            print("[source] fxtwitter indisponible : " + str(e)[:90])
+
+        # X seulement en secours. Il refuse (429) les machines GitHub depuis
+        # le 22/09 : l'interroger quand fxtwitter a repondu coutait 48 s de
+        # reessais a chaque passage, pour rien.
+        if not depuis_fx:
+            try:
+                depuis_x = x_syndication.derniers_tweets(handle)
+                sources.append("x(" + str(len(depuis_x)) + ")")
+            except x_syndication.ErreurSyndication as e:
+                print("[source] X indisponible : " + str(e)[:90])
 
         # Gratuit et toujours disponible, mais il n'y relaie pas tout.
         try:
@@ -123,12 +134,12 @@ def derniers_tweets(handle: str, brut_aussi: bool = False):
         # gratuit dit qu'il a publie sans que les sources gratuites
         # n'aient rien rapporte. Voir complement_apify().
 
-        if not depuis_x and not depuis_tg:
+        if not depuis_fx and not depuis_x and not depuis_tg:
             raise ErreurSource("aucune source disponible")
 
         _DERNIERE = "+".join(sources) or "aucune"
-        # Ordre de priorite : X, puis l'apercu Telegram, plus pauvre.
-        fusion = _fusionner(depuis_x, depuis_tg)
+        # Ordre de priorite : fxtwitter, X, puis l'apercu Telegram, plus pauvre.
+        fusion = _fusionner(depuis_fx, depuis_x, depuis_tg)
         if brut_aussi:
             return fusion, {}
         return fusion
