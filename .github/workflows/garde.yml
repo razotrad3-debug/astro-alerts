@@ -1,0 +1,43 @@
+name: garde-file
+
+# Surveille la file du watcher et la debloque si un passage y reste coince.
+# Voir garde.py pour le detail et l'incident du 24/09/2026 qui l'a motive.
+#
+# Workflow SEPARE et groupe de concurrence DISTINCT : c'est tout l'interet.
+# Un passage coince dans le groupe du watcher ne peut pas bloquer le garde
+# qui est justement la pour l'annuler.
+#
+# Declenche par le cron GitHub seulement, pas par cron-job.org : il ne double
+# donc pas le nombre de passages. GitHub retarde ses crons (15 a 20 min en
+# pratique au lieu de 10) : dans le pire cas, un blocage dure une demi-heure,
+# contre 24 h avant.
+
+on:
+  schedule:
+    - cron: "*/10 * * * *"
+  workflow_dispatch:
+
+permissions:
+  actions: write      # annuler un passage coince
+  contents: read
+
+concurrency:
+  group: garde-file
+  cancel-in-progress: true
+
+jobs:
+  garde:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: garde.py
+          sparse-checkout-cone-mode: false
+
+      - name: Debloquer la file si besoin
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: python3 garde.py
