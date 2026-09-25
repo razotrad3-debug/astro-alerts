@@ -28,8 +28,18 @@ permissions:
   contents: write
 
 concurrency:
-  # Deux passages simultanes se marcheraient dessus sur state.json.
-  group: x-short-watcher
+  # Deux passages simultanes se marcheraient dessus sur state.json : le
+  # groupe les serialise, et c'est ce qui evite les alertes en double.
+  #
+  # Le suffixe n'est pas decoratif. Le 24/09/2026 a 06h18, un passage est
+  # reste bloque en "queued" — GitHub ne lui a jamais donne de machine. Il
+  # a garde le verrou 22 heures, pendant lesquelles chaque nouveau passage
+  # s'est mis en file derriere lui puis s'est fait annuler par le suivant :
+  # 799 passages annules, zero execute, plus aucune alerte pendant 3 jours.
+  # Changer le nom du groupe libere instantanement les nouveaux passages,
+  # sans avoir a debloquer celui qui est coince (GitHub finit par annuler
+  # tout seul une file de plus de 24 h).
+  group: x-short-watcher-v2
   cancel-in-progress: false
 
 jobs:
