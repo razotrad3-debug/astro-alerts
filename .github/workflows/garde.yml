@@ -7,12 +7,19 @@ name: garde-file
 # Un passage coince dans le groupe du watcher ne peut pas bloquer le garde
 # qui est justement la pour l'annuler.
 #
-# Declenche par le cron GitHub seulement, pas par cron-job.org : il ne double
-# donc pas le nombre de passages. GitHub retarde ses crons (15 a 20 min en
-# pratique au lieu de 10) : dans le pire cas, un blocage dure une demi-heure,
-# contre 24 h avant.
+# Deux declencheurs :
+#  - la fin de chaque passage du watcher qui N'A PAS reussi (annule, echoue).
+#    C'est le signe meme d'une panne, et il reagit dans la minute. Mesure le
+#    08/10/2026 : son cron seul etait tombe a un passage toutes les 4 a 7 h,
+#    GitHub bridant les crons frequents — la garantie de "20 min au pire" ne
+#    tenait plus. Quand le watcher reussit, le job est saute : aucun cout.
+#  - le cron, en filet de securite pour le cas ou plus rien ne tourne du tout
+#    (minuteur mort) et ou il n'y a donc plus de fin de passage a observer.
 
 on:
+  workflow_run:
+    workflows: ["x-short-watcher"]
+    types: [completed]
   schedule:
     - cron: "*/10 * * * *"
   workflow_dispatch:
@@ -27,6 +34,9 @@ concurrency:
 
 jobs:
   garde:
+    if: >-
+      github.event_name != 'workflow_run'
+      || github.event.workflow_run.conclusion != 'success'
     runs-on: ubuntu-latest
     timeout-minutes: 3
     steps:
