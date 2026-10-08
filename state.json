@@ -1,13 +1,6 @@
 {
   "astronomer_zero@fusion": {
     "ids": [
-      "1962491664976777523",
-      "1962766402684887149",
-      "1963036082834149430",
-      "1963762837811282386",
-      "1963951449555280120",
-      "1964808462208205043",
-      "2104335710572757285",
       "2104370926372733088",
       "2104386097874903458",
       "2104389625913700765",
@@ -200,16 +193,16 @@
       "1952742463069995426",
       "1953089404488303071",
       "1955577371366715731",
-      "1956380202793398371"
+      "1956380202793398371",
+      "1957258025015853306",
+      "1957968910873174389",
+      "1958587110224798120",
+      "1958889721180168358",
+      "1959679695366275143",
+      "1959683892614766599",
+      "1959788212345610671"
     ],
     "empreintes": [
-      "img:GzRAu6_bYAAW6IP",
-      "img:GzSVT-5bEAAxTHS",
-      "img:GzXW9Uaa4AIfTnd",
-      "img:GzXbuB8acAAV3k1",
-      "img:GzhmUnzbkAUA2pL",
-      "img:GzteZjYa8AA2ifY",
-      "img:GzwpUT6a0AAGioq",
       "img:Gz0YutpbIAA4CiZ",
       "img:Gz4Y4VybsAAzRpE",
       "img:G0CthWxacAA3xqW",
@@ -402,7 +395,14 @@
       "img:GxmIX_3bcAASFbn",
       "img:GxrB7U8awAAa5vY",
       "img:GyOZdRJbwAAk8gY",
-      "img:GyZyqUSbIAAAaO7"
+      "img:GyZyqUSbIAAAaO7",
+      "img:GymTVdDbIAA3ipg",
+      "img:GywZyYSbAAAtj-6",
+      "img:Gy5MNUibkAA5PUN",
+      "img:Gy9cXhNbIAA7r-5",
+      "img:GzIpJOQbQAAR8gf",
+      "txt:58f78e6538924ae7",
+      "img:GzKQgyWbIAAoSYj"
     ],
     "trades": [
       {
