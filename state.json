@@ -1,13 +1,6 @@
 {
   "astronomer_zero@fusion": {
     "ids": [
-      "2104370926372733088",
-      "2104386097874903458",
-      "2104389625913700765",
-      "2104405184072052963",
-      "1965359645369008452",
-      "1966302080236450203",
-      "1966614042497478899",
       "1967025520266408177",
       "1969717906255863910",
       "1972534321664979269",
@@ -200,16 +193,16 @@
       "1958889721180168358",
       "1959679695366275143",
       "1959683892614766599",
-      "1959788212345610671"
+      "1959788212345610671",
+      "1960264456904249647",
+      "1960358009093448016",
+      "1960712018119549333",
+      "1960736163515523337",
+      "1961430550843207831",
+      "1962271190703382932",
+      "1962491664976777523"
     ],
     "empreintes": [
-      "img:Gz0YutpbIAA4CiZ",
-      "img:Gz4Y4VybsAAzRpE",
-      "img:G0CthWxacAA3xqW",
-      "img:G0FanUya0AAs-g9",
-      "img:G0RiiJJaoAAd0aK",
-      "img:HTQaLHAbgAA2o9p",
-      "img:HTQ4h5ca8AA3d-O",
       "img:HTRHSz1aIAACgFB",
       "txt:49cb577f9dda19c6",
       "txt:0c5ae4d4fe0de281",
@@ -402,7 +395,14 @@
       "img:Gy9cXhNbIAA7r-5",
       "img:GzIpJOQbQAAR8gf",
       "txt:58f78e6538924ae7",
-      "img:GzKQgyWbIAAoSYj"
+      "img:GzKQgyWbIAAoSYj",
+      "img:GzRAu6_bYAAW6IP",
+      "img:GzSVT-5bEAAxTHS",
+      "img:GzXW9Uaa4AIfTnd",
+      "img:GzXbuB8acAAV3k1",
+      "img:GzhmUnzbkAUA2pL",
+      "img:GzteZjYa8AA2ifY",
+      "img:GzwpUT6a0AAGioq"
     ],
     "trades": [
       {
