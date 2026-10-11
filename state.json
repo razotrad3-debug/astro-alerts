@@ -1,8 +1,6 @@
 {
   "astronomer_zero@fusion": {
     "ids": [
-      "2105191508148388028",
-      "2105192133930123597",
       "2105217699915915584",
       "2105251970462433776",
       "2105255126160056403",
@@ -200,10 +198,11 @@
       "tg-9931",
       "tg-9932",
       "tg-9933",
-      "tg-9934"
+      "tg-9934",
+      "tg-9936",
+      "tg-9937"
     ],
     "empreintes": [
-      "img:HTa1lngbIAArEIx",
       "img:HTa4UMXbQAETxIT",
       "txt:68d1f586097d1f61",
       "img:HTckCd2a4AARi_4",
@@ -402,7 +401,8 @@
       "txt:eb82fe4330b5848c",
       "txt:bff2293c5ddc5689",
       "txt:c72c9c750649e0bf",
-      "txt:43086d8b974998d5"
+      "txt:43086d8b974998d5",
+      "txt:66a7395caf32cfd8"
     ],
     "trades": [
       {
@@ -545,7 +545,7 @@
   },
   "_horodatages": {
     "apify": 1790045549.8648531,
-    "x_429": 1791709634.0065784
+    "x_429": 1791710835.3001971
   },
   "_compteurs": {
     "astronomer_zero@fxtwitter": 20538
