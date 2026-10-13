@@ -1,7 +1,6 @@
 {
   "astronomer_zero@fusion": {
     "ids": [
-      "2105636970693337435",
       "2105782380841820611",
       "2105819437962301582",
       "2105880623336562834",
@@ -200,10 +199,10 @@
       "tg-9959",
       "tg-9960",
       "tg-9961",
-      "2109783791195836842"
+      "2109783791195836842",
+      "2109879227818656037"
     ],
     "empreintes": [
-      "img:HThnJD8acAAVCMi",
       "img:HTh3rN1aUAAJT9C",
       "img:HTiHoELbsAA7e25",
       "img:HTi4mKNbIAArkbu",
@@ -402,7 +401,8 @@
       "txt:3de9d3f274a1913a",
       "txt:e08ff12ef94f5754",
       "txt:0e43b2b041f686c9",
-      "img:HUd0ijubAAAnfSR"
+      "img:HUd0ijubAAAnfSR",
+      "img:HUfKrjEacAAkqol"
     ],
     "trades": [
       {
@@ -539,6 +539,15 @@
         "instant": 1791549474.0,
         "message_id": 301,
         "tweet_id": "2108537436636860897"
+      },
+      {
+        "ticker": "BTC",
+        "sens": "short",
+        "statut": "ouverture",
+        "entree": 83800.0,
+        "instant": 1791869382.0,
+        "message_id": 315,
+        "tweet_id": "2109879227818656037"
       }
     ],
     "essais": {}
