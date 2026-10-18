@@ -1,10 +1,6 @@
 {
   "astronomer_zero@fusion": {
     "ids": [
-      "2107758475019522096",
-      "2107766347912671313",
-      "2107789723108544560",
-      "2107799779417923970",
       "2107801107103940810",
       "2107809974961500306",
       "2107830714896904300",
@@ -200,13 +196,13 @@
       "2111745597833412630",
       "tg-9992",
       "tg-9993",
-      "tg-9994"
+      "tg-9994",
+      "tg-9995",
+      "tg-9996",
+      "tg-9998",
+      "2111919048619614571"
     ],
     "empreintes": [
-      "img:HT6ti3Ra4AANHzs",
-      "img:HT_edI9aEAA-5y2",
-      "img:HT_zQYvbEAEoKJk",
-      "txt:60de1c1a1e98709e",
       "txt:099a75285760df6b",
       "img:HUAdVf1bwAAW5FE",
       "img:HUAhMIna4AAW5PX",
@@ -402,7 +398,11 @@
       "img:HU5sAAcaUAA9OOW",
       "txt:107ecd6a48805455",
       "txt:df999749e8a2fe2e",
-      "txt:b42516d2625af33b"
+      "txt:b42516d2625af33b",
+      "txt:0c1fba3e903acc43",
+      "txt:98a7c47a784d32ff",
+      "txt:196899d1db80653d",
+      "img:HU8Hdvta0AAMXNI"
     ],
     "trades": [
       {
@@ -575,6 +575,15 @@
         "instant": 1792071242.0,
         "message_id": 328,
         "tweet_id": "2110725889109749922"
+      },
+      {
+        "ticker": "BTC",
+        "sens": "long",
+        "statut": "ouverture",
+        "entree": 80700.0,
+        "instant": 1792355713.0,
+        "message_id": 336,
+        "tweet_id": "2111919048619614571"
       }
     ],
     "essais": {}
