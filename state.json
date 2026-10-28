@@ -1,7 +1,6 @@
 {
   "astronomer_zero@fusion": {
     "ids": [
-      "tg-9957",
       "2109781281945088453",
       "tg-9959",
       "tg-9960",
@@ -200,10 +199,10 @@
       "2115029385099014609",
       "2115184674784080022",
       "2115200333421170869",
-      "2115338636917178751"
+      "2115338636917178751",
+      "2115362141532459320"
     ],
     "empreintes": [
-      "txt:8e8e00d82ad6fe36",
       "txt:5718e32138bdf9ef",
       "txt:7d43720ad5aa796e",
       "txt:a4f40a173178c92c",
@@ -402,7 +401,8 @@
       "txt:50c38f322eedf967",
       "img:HVqlPtBbYAAryc2",
       "img:HVqzcoHaEAAxg5D",
-      "img:HVswnvxa0AA9wst"
+      "img:HVswnvxa0AA9wst",
+      "img:HVtF2_cbgAA4UVL"
     ],
     "trades": [
       {
